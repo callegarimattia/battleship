@@ -20,8 +20,6 @@
 1. **Primary Grid:** Displays their own ships and opponent's attacks.
 2. **Tracking Grid:** Blank initially; records the player's shots (hits/misses) against the opponent.
 
-
-
 ---
 
 ## 3. The Fleet (Assets)
@@ -60,21 +58,8 @@ The game is played in alternating turns.
 * **MISS:** The coordinate is empty. Mark as white/empty on the Tracking Grid.
 * **HIT:** The coordinate is occupied by a ship. Mark as red/hit on the Tracking Grid.
 
-
 3. **Sinking:** When every coordinate occupied by a specific ship has been hit, that ship is **SUNK**. The opponent must announce, "You sunk my [Ship Name]!"
 
 ### **End Game**
 
 * **Win Condition:** A player wins immediately when **all 17 grid cells** occupied by the opponent's 5 ships have been hit.
-
----
-
-## 5. Data States (For Development)
-
-For your data structure, each cell on the grid should likely track one of the following states:
-
-1. **Empty (Water)** - Initial state.
-2. **Occupied** - Contains a ship segment (hidden from opponent).
-3. **Miss** - Shot fired at Empty cell.
-4. **Hit** - Shot fired at Occupied cell.
-
