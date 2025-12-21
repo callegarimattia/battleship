@@ -23,10 +23,10 @@ func setupLobby(t *testing.T) (*controller.Controller, string, string) {
 // Rows: 0=Carrier, 1=Battleship, 2=Cruiser, 3=Submarine, 4=Destroyer
 func placeFullFleet(t *testing.T, c *controller.Controller, pid string) {
 	t.Helper()
-	ships := []model.ShipType{"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"}
+	ships := []model.ShipType{model.Carrier, model.Battleship, model.Cruiser, model.Submarine, model.Destroyer}
 
 	for row, s := range ships {
-		err := c.PlaceShip(pid, string(s), 0, row, "h")
+		err := c.PlaceShip(pid, s, model.Coordinate{X: 0, Y: row}, model.Horizontal)
 		if err != nil {
 			t.Fatalf("Failed to place ship %s for %s: %v", s, pid, err)
 		}

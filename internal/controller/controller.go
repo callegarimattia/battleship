@@ -5,6 +5,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type GameController interface {
+	Info() GameInfo
+	Join() (string, error)
+	PlaceShip(string, model.ShipType, model.Coordinate, model.Orientation) error
+	Ready(string) error
+	Fire(string, model.Coordinate) (model.ShotResult, error)
+}
+
 // Controller manages the game state and logic for a Battleship game.
 // It handles player interactions, validating requests, and updating the state.
 type Controller struct {
@@ -60,36 +68,23 @@ func (c *Controller) Join() (string, error) {
 }
 
 // PlaceShip places a ship for the specified player.
-// It accepts primitive types for ship name (string) and orientation (string).
+// It accepts model types for ship, position, and orientation.
 // It converts internal/model errors into controller-specific errors.
 //
 // Possible errors:
 //   - ErrWrongGamePhase: If game is not in PhaseSetup.
 //   - ErrUnknownPlayer: If playerID is invalid.
-//   - ErrInvalidShipType: If shipName is unknown.
-//   - ErrInvalidOrientation: If orientation is invalid.
 //   - ErrOverlap: If the ship overlaps with an existing ship.
 //   - ErrShipTypeDepleted: If the player has no more ships of this type to place.
 //   - ErrInvalidCoordinates: If placements are out of bounds.
-func (c *Controller) PlaceShip(playerID string, shipName string, x, y int, orientation string) error {
+func (c *Controller) PlaceShip(playerID string, ship model.ShipType, start model.Coordinate, orientation model.Orientation) error {
 	player, err := c.validateRequest(playerID, PhaseSetup)
 	if err != nil {
 		return err
 	}
 
-	sType, err := c.parseShipType(shipName)
-	if err != nil {
-		return err
-	}
-
-	orient, err := c.parseOrientation(orientation)
-	if err != nil {
-		return err
-	}
-
-	// Delegate to Model and map errors
-	err = player.PlaceShip(sType, c.toModelCoordinate(x, y), orient)
-	return c.mapModelError(err)
+	// Delegate to Model
+	return player.PlaceShip(ship, start, orientation)
 }
 
 // Ready marks a player as ready to start the game.
@@ -107,7 +102,7 @@ func (c *Controller) Ready(playerID string) error {
 	}
 
 	if err := player.SetReady(); err != nil {
-		return c.mapModelError(err)
+		return err
 	}
 
 	if c.getOpponent(playerID).IsReady() {
@@ -128,32 +123,30 @@ func (c *Controller) Ready(playerID string) error {
 //   - ErrGameOver: If the game has already ended.
 //
 // Returns the result of the shot (Hit, Miss, Sunk) and nil error on success.
-func (c *Controller) Fire(attackerID string, x, y int) (string, error) {
+func (c *Controller) Fire(attackerID string, target model.Coordinate) (model.ShotResult, error) {
 	attacker, err := c.validateRequest(attackerID, PhasePlay)
 	if err != nil {
-		return ResultInvalid, err
+		return model.ResultInvalid, err
 	}
 
 	defender := c.getOpponent(attackerID)
 	// Defender should exist if game is in PhasePlay
 	if defender == nil {
-		return ResultInvalid, ErrUnknownPlayer
+		return model.ResultInvalid, ErrUnknownPlayer
 	}
 
-	coords := c.toModelCoordinate(x, y)
-
 	// Perform Action
-	modelResult, err := defender.ReceiveAttack(coords)
+	modelResult, err := defender.ReceiveAttack(target)
 	if err != nil {
-		return ResultInvalid, c.mapModelError(err)
+		return model.ResultInvalid, err
 	}
 
 	// Error is ignored because coordinates are verified by ReceiveAttack
-	_ = attacker.MarksShotResult(coords, modelResult)
+	_ = attacker.MarksShotResult(target, modelResult)
 
 	c.advanceGame(defender.ID())
 
-	return c.formatResult(modelResult), nil
+	return modelResult, nil
 }
 
 // validateRequest checks if the request is valid for the current game state.
@@ -176,25 +169,6 @@ func (c *Controller) validateRequest(playerID string, expectedPhase GamePhase) (
 	}
 
 	return player, nil
-}
-
-// mapModelError maps model errors to controller errors.
-func (c *Controller) mapModelError(err error) error {
-	switch err {
-	case model.ErrOutOfBounds:
-		return ErrInvalidCoordinates
-	case model.ErrShipOverlap:
-		return ErrOverlap
-	case model.ErrShipTypeDepleted:
-		return ErrShipTypeDepleted
-	case model.ErrFleetIncomplete:
-		return ErrFleetIncomplete
-	case model.ErrRepeatedHit:
-		return ErrAlreadyAttacked
-
-	default:
-		return err
-	}
 }
 
 func (c *Controller) getOpponent(id string) *model.Player {

@@ -50,6 +50,9 @@ func (p *Player) ID() string {
 // PlaceShip allows a player to place a ship on their board.
 func (p *Player) PlaceShip(sType ShipType, start Coordinate, o Orientation) error {
 	segments := calculateSegments(start, sType.Size(), o)
+	if len(segments) == 0 {
+		return ErrInvalidShip
+	}
 
 	if !p.board.inBounds(segments[len(segments)-1]) {
 		return ErrOutOfBounds
