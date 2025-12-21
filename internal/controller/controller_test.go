@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/callegarimattia/battleship/internal/controller"
-	"github.com/callegarimattia/battleship/internal/model"
+	m "github.com/callegarimattia/battleship/internal/model"
 )
 
 func TestController_Join(t *testing.T) {
@@ -54,9 +54,9 @@ func TestController_PlaceShip(t *testing.T) {
 	type testCase struct {
 		name    string
 		setup   func() (*controller.Controller, string) // Returns controller and playerID
-		ship    model.ShipType
-		start   model.Coordinate
-		orient  model.Orientation
+		ship    m.ShipType
+		start   m.Coordinate
+		orient  m.Orientation
 		wantErr error
 	}
 
@@ -67,9 +67,9 @@ func TestController_PlaceShip(t *testing.T) {
 				c, p1, _ := setupLobby(t)
 				return c, p1
 			},
-			ship:    model.Carrier,
-			start:   model.Coordinate{X: 0, Y: 0},
-			orient:  model.Horizontal,
+			ship:    m.Carrier,
+			start:   m.Coordinate{X: 0, Y: 0},
+			orient:  m.Horizontal,
 			wantErr: nil,
 		},
 		{
@@ -79,9 +79,9 @@ func TestController_PlaceShip(t *testing.T) {
 				p1, _ := c.Join()
 				return c, p1
 			},
-			ship:    model.Carrier,
-			start:   model.Coordinate{X: 0, Y: 0},
-			orient:  model.Horizontal,
+			ship:    m.Carrier,
+			start:   m.Coordinate{X: 0, Y: 0},
+			orient:  m.Horizontal,
 			wantErr: controller.ErrWrongGamePhase,
 		},
 		{
@@ -90,34 +90,34 @@ func TestController_PlaceShip(t *testing.T) {
 				c, _, _ := setupLobby(t)
 				return c, "hacker"
 			},
-			ship:    model.Carrier,
-			start:   model.Coordinate{X: 0, Y: 0},
-			orient:  model.Horizontal,
+			ship:    m.Carrier,
+			start:   m.Coordinate{X: 0, Y: 0},
+			orient:  m.Horizontal,
 			wantErr: controller.ErrUnknownPlayer,
 		},
 		{
 			name: "Duplicate ship (Inventory)",
 			setup: func() (*controller.Controller, string) {
 				c, p1, _ := setupLobby(t)
-				_ = c.PlaceShip(p1, model.Carrier, model.Coordinate{X: 0, Y: 0}, model.Horizontal)
+				_ = c.PlaceShip(p1, m.Carrier, m.Coordinate{X: 0, Y: 0}, m.Horizontal)
 				return c, p1
 			},
-			ship:    model.Carrier,
-			start:   model.Coordinate{X: 5, Y: 5},
-			orient:  model.Horizontal,
-			wantErr: model.ErrShipTypeDepleted,
+			ship:    m.Carrier,
+			start:   m.Coordinate{X: 5, Y: 5},
+			orient:  m.Horizontal,
+			wantErr: m.ErrShipTypeDepleted,
 		},
 		{
 			name: "Overlap error",
 			setup: func() (*controller.Controller, string) {
 				c, p1, _ := setupLobby(t)
-				_ = c.PlaceShip(p1, model.Carrier, model.Coordinate{X: 0, Y: 0}, model.Horizontal)
+				_ = c.PlaceShip(p1, m.Carrier, m.Coordinate{X: 0, Y: 0}, m.Horizontal)
 				return c, p1
 			},
-			ship:    model.Destroyer,
-			start:   model.Coordinate{X: 0, Y: 0},
-			orient:  model.Vertical,
-			wantErr: model.ErrShipOverlap,
+			ship:    m.Destroyer,
+			start:   m.Coordinate{X: 0, Y: 0},
+			orient:  m.Vertical,
+			wantErr: m.ErrShipOverlap,
 		},
 		{
 			name: "Invalid ship type",
@@ -126,9 +126,9 @@ func TestController_PlaceShip(t *testing.T) {
 				return c, p1
 			},
 			ship:    "SpaceShip",
-			start:   model.Coordinate{X: 0, Y: 0},
-			orient:  model.Horizontal,
-			wantErr: model.ErrInvalidShip,
+			start:   m.Coordinate{X: 0, Y: 0},
+			orient:  m.Horizontal,
+			wantErr: m.ErrInvalidShip,
 		},
 	}
 
@@ -182,7 +182,7 @@ func TestController_Ready(t *testing.T) {
 				c, p1, _ := setupLobby(t)
 				return c, p1
 			},
-			wantErr: model.ErrFleetIncomplete,
+			wantErr: m.ErrFleetIncomplete,
 		},
 	}
 
@@ -202,8 +202,8 @@ func TestController_Fire(t *testing.T) {
 	tests := []struct {
 		name       string
 		setup      func() (*controller.Controller, string)
-		target     model.Coordinate
-		wantResult model.ShotResult
+		target     m.Coordinate
+		wantResult m.ShotResult
 		wantErr    error
 	}{
 		{
@@ -213,8 +213,8 @@ func TestController_Fire(t *testing.T) {
 				c, p1, _ := setupActiveGame(t)
 				return c, p1
 			},
-			target:     model.Coordinate{X: 0, Y: 0},
-			wantResult: model.ResultHit,
+			target:     m.Coordinate{X: 0, Y: 0},
+			wantResult: m.ResultHit,
 			wantErr:    nil,
 		},
 		{
@@ -223,8 +223,8 @@ func TestController_Fire(t *testing.T) {
 				c, p1, _ := setupActiveGame(t)
 				return c, p1
 			},
-			target:     model.Coordinate{X: 9, Y: 9},
-			wantResult: model.ResultMiss,
+			target:     m.Coordinate{X: 9, Y: 9},
+			wantResult: m.ResultMiss,
 			wantErr:    nil,
 		},
 		{
@@ -234,8 +234,8 @@ func TestController_Fire(t *testing.T) {
 				p1, _ := c.Join()
 				return c, p1
 			},
-			target:     model.Coordinate{X: 0, Y: 0},
-			wantResult: model.ResultInvalid,
+			target:     m.Coordinate{X: 0, Y: 0},
+			wantResult: m.ResultInvalid,
 			wantErr:    controller.ErrWrongGamePhase,
 		},
 		{
@@ -244,8 +244,8 @@ func TestController_Fire(t *testing.T) {
 				c, _, _ := setupActiveGame(t)
 				return c, "random"
 			},
-			target:     model.Coordinate{X: 0, Y: 0},
-			wantResult: model.ResultInvalid,
+			target:     m.Coordinate{X: 0, Y: 0},
+			wantResult: m.ResultInvalid,
 			wantErr:    controller.ErrUnknownPlayer,
 		},
 		{
@@ -254,8 +254,8 @@ func TestController_Fire(t *testing.T) {
 				c, _, p2 := setupActiveGame(t)
 				return c, p2 // P2 trying to fire during P1's turn
 			},
-			target:     model.Coordinate{X: 0, Y: 0},
-			wantResult: model.ResultInvalid,
+			target:     m.Coordinate{X: 0, Y: 0},
+			wantResult: m.ResultInvalid,
 			wantErr:    controller.ErrNotYourTurn,
 		},
 		{
@@ -264,9 +264,9 @@ func TestController_Fire(t *testing.T) {
 				c, p1, _ := setupActiveGame(t)
 				return c, p1
 			},
-			target:     model.Coordinate{X: 100, Y: 100},
-			wantResult: model.ResultInvalid,
-			wantErr:    model.ErrOutOfBounds,
+			target:     m.Coordinate{X: 100, Y: 100},
+			wantResult: m.ResultInvalid,
+			wantErr:    m.ErrOutOfBounds,
 		},
 	}
 
@@ -307,7 +307,7 @@ func TestController_GameLifecycle_TransitionToPlay(t *testing.T) {
 	}
 
 	// 5. Verify Fire works now
-	_, err := c.Fire(p1, model.Coordinate{X: 0, Y: 0})
+	_, err := c.Fire(p1, m.Coordinate{X: 0, Y: 0})
 	if err != nil {
 		t.Errorf("Expected Fire to work after transition, got: %v", err)
 	}
@@ -320,12 +320,12 @@ func TestController_GameLifecycle_WinCondition(t *testing.T) {
 	// P1 shoots at P2's ships
 	sinkShip := func(row int, size int) {
 		for x := range size {
-			_, err := c.Fire(p1, model.Coordinate{X: x, Y: row})
+			_, err := c.Fire(p1, m.Coordinate{X: x, Y: row})
 			if err != nil {
 				t.Fatalf("Failed to fire during sink sequence at %d,%d: %v", x, row, err)
 			}
 			// Burn the defender's turn (shoot water at 9,9)
-			_, _ = c.Fire(p2, model.Coordinate{X: 9, Y: 9})
+			_, _ = c.Fire(p2, m.Coordinate{X: 9, Y: 9})
 		}
 	}
 
@@ -338,15 +338,15 @@ func TestController_GameLifecycle_WinCondition(t *testing.T) {
 	// Sink the final Destroyer (Size 2 at Row 4)
 
 	// 1. Hit first part
-	res, _ := c.Fire(p1, model.Coordinate{X: 0, Y: 4})
-	if res != model.ResultHit {
+	res, _ := c.Fire(p1, m.Coordinate{X: 0, Y: 4})
+	if res != m.ResultHit {
 		t.Errorf("Expected Hit, got %v", res)
 	}
-	_, _ = c.Fire(p2, model.Coordinate{X: 9, Y: 9}) // Burn turn
+	_, _ = c.Fire(p2, m.Coordinate{X: 9, Y: 9}) // Burn turn
 
 	// 2. Hit last part (Winning Shot)
-	res, _ = c.Fire(p1, model.Coordinate{X: 1, Y: 4})
-	if res != model.ResultSunk {
+	res, _ = c.Fire(p1, m.Coordinate{X: 1, Y: 4})
+	if res != m.ResultSunk {
 		t.Fatalf("Expected ResultSunk on winning shot, got %v", res)
 	}
 
@@ -360,7 +360,7 @@ func TestController_GameLifecycle_WinCondition(t *testing.T) {
 	}
 
 	// Verify further shots are blocked
-	_, err := c.Fire(p2, model.Coordinate{X: 5, Y: 5})
+	_, err := c.Fire(p2, m.Coordinate{X: 5, Y: 5})
 	if err != controller.ErrGameOver {
 		t.Fatalf("Expected ErrGameOver for post-game shot, got %v", err)
 	}

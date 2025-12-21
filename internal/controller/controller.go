@@ -149,6 +149,8 @@ func (c *Controller) Fire(attackerID string, target model.Coordinate) (model.Sho
 	return modelResult, nil
 }
 
+// ---- Helper Methods ----
+
 // validateRequest checks if the request is valid for the current game state.
 func (c *Controller) validateRequest(playerID string, expectedPhase GamePhase) (*model.Player, error) {
 	if c.phase == PhaseGameOver {

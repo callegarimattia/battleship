@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/callegarimattia/battleship/internal/controller"
+	"github.com/callegarimattia/battleship/internal/dto"
 	"github.com/callegarimattia/battleship/internal/model"
 )
 
@@ -46,12 +46,12 @@ func parseShipType(shipType string) (model.ShipType, error) {
 func formatResult(result model.ShotResult) string {
 	switch result {
 	case model.ResultHit:
-		return controller.ResultHit
+		return dto.ResultHit
 	case model.ResultMiss:
-		return controller.ResultMiss
+		return dto.ResultMiss
 	case model.ResultSunk:
-		return controller.ResultSunk
+		return dto.ResultSunk
 	default:
-		return controller.ResultInvalid
+		return dto.ResultInvalid
 	}
 }

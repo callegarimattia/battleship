@@ -42,3 +42,11 @@ type Coordinate struct {
 func (c Coordinate) ToModel() model.Coordinate {
 	return model.Coordinate{X: c.X, Y: c.Y}
 }
+
+// Public constants for API interaction validation results.
+const (
+	ResultHit     = "Hit"
+	ResultMiss    = "Miss"
+	ResultSunk    = "Sunk"
+	ResultInvalid = "Invalid"
+)
