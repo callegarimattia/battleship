@@ -1,0 +1,74 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  settings:
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - whyNoLint
+    gocyclo:
+      min-complexity: 15
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment 
+    lll:
+      line-length: 120
+
+  exclusions:
+    rules:
+      - path: _test.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - funlen
+          - lll
+          - revive
+
+  enable:
+    # Bugs & Correctness
+    - errcheck      # Unchecked errors
+    - staticcheck   # Go static analysis
+    - govet         # Official Go vet
+    - gosec         # Security scanner
+    - errorlint     # Go 1.13+ error wrapping checks
+    - nilerr        # Reports returns that return nil err but not nil value
+
+    # Complexity & Perf
+    - gocyclo       # Cyclomatic complexity
+    - gocognit      # Cognitive complexity (readability)
+    - funlen        # Function length
+    - prealloc      # Slice pre-allocation
+    - unparam       # Unused parameters
+
+    # Style
+    - revive        # Drop-in replacement for golint
+    - misspell      # Spelling
+    - lll           # Line length
+    - nakedret      # Disallow naked returns
+    - goconst       # Magic string detection
+    - gocritic      # Extensive checks
+
+    # Testing
+    - paralleltest  # Enforce t.Parallel() usage
+
+formatters:
+  enable:
+    - gofumpt       # Strict gofmt
+    - goimports     # Import organization
+
+issues:
+  fix: true
