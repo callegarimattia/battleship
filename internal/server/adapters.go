@@ -9,8 +9,10 @@ import (
 )
 
 var (
+	// ErrInvalidOrientation is returned when an invalid orientation string is provided.
 	ErrInvalidOrientation = errors.New("invalid orientation")
-	ErrInvalidShipType    = errors.New("invalid ship type")
+	// ErrInvalidShipType is returned when an invalid ship type string is provided.
+	ErrInvalidShipType = errors.New("invalid ship type")
 )
 
 func parseOrientation(orientation string) (model.Orientation, error) {

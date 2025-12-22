@@ -1,6 +1,7 @@
 package controller_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/callegarimattia/battleship/internal/controller"
@@ -8,15 +9,21 @@ import (
 )
 
 func TestController_Join(t *testing.T) {
+	t.Parallel()
+
 	c := controller.NewController()
 
 	t.Run("Game starts in Waiting Phase", func(t *testing.T) {
+		t.Parallel()
+
 		if c.Info().Phase != controller.PhaseWaiting {
 			t.Errorf("Expected PhaseWaiting, got %v", c.Info().Phase)
 		}
 	})
 
 	t.Run("transitions correctly", func(t *testing.T) {
+		t.Parallel()
+
 		// 1. First player
 		id1, err := c.Join()
 		if err != nil {
@@ -43,13 +50,15 @@ func TestController_Join(t *testing.T) {
 
 		// 3. Third player (Full)
 		_, err = c.Join()
-		if err != controller.ErrGameFull {
+		if !errors.Is(err, controller.ErrGameFull) {
 			t.Errorf("Expected ErrGameFull, got %v", err)
 		}
 	})
 }
 
 func TestController_PlaceShip(t *testing.T) {
+	t.Parallel()
+
 	// Helper for clean tests
 	type testCase struct {
 		name    string
@@ -134,10 +143,12 @@ func TestController_PlaceShip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			c, pid := tt.setup()
 			err := c.PlaceShip(pid, tt.ship, tt.start, tt.orient)
 
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("PlaceShip() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -145,6 +156,8 @@ func TestController_PlaceShip(t *testing.T) {
 }
 
 func TestController_Ready(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		setup   func() (*controller.Controller, string)
@@ -188,10 +201,11 @@ func TestController_Ready(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			c, pid := tt.setup()
 			err := c.Ready(pid)
 
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("Ready() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -199,6 +213,8 @@ func TestController_Ready(t *testing.T) {
 }
 
 func TestController_Fire(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		setup      func() (*controller.Controller, string)
@@ -272,10 +288,12 @@ func TestController_Fire(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			c, pid := tt.setup()
 			res, err := c.Fire(pid, tt.target)
 
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("Fire() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if res != tt.wantResult {
@@ -286,6 +304,8 @@ func TestController_Fire(t *testing.T) {
 }
 
 func TestController_GameLifecycle_TransitionToPlay(t *testing.T) {
+	t.Parallel()
+
 	c, p1, p2 := setupLobby(t)
 
 	// 1. P1 places full fleet
@@ -314,6 +334,8 @@ func TestController_GameLifecycle_TransitionToPlay(t *testing.T) {
 }
 
 func TestController_GameLifecycle_WinCondition(t *testing.T) {
+	t.Parallel()
+
 	c, p1, p2 := setupActiveGame(t)
 
 	// Helper to sink a specific ship type at a specific row
@@ -361,7 +383,7 @@ func TestController_GameLifecycle_WinCondition(t *testing.T) {
 
 	// Verify further shots are blocked
 	_, err := c.Fire(p2, m.Coordinate{X: 5, Y: 5})
-	if err != controller.ErrGameOver {
+	if !errors.Is(err, controller.ErrGameOver) {
 		t.Fatalf("Expected ErrGameOver for post-game shot, got %v", err)
 	}
 }

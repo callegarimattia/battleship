@@ -20,11 +20,3 @@ const (
 	PhasePlay     GamePhase = "Play"
 	PhaseGameOver GamePhase = "GameOver"
 )
-
-// Public constants for API interaction validation results.
-const (
-	ResultHit     = "Hit"
-	ResultMiss    = "Miss"
-	ResultSunk    = "Sunk"
-	ResultInvalid = "Invalid"
-)

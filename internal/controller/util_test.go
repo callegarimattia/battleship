@@ -23,7 +23,13 @@ func setupLobby(t *testing.T) (*controller.Controller, string, string) {
 // Rows: 0=Carrier, 1=Battleship, 2=Cruiser, 3=Submarine, 4=Destroyer
 func placeFullFleet(t *testing.T, c *controller.Controller, pid string) {
 	t.Helper()
-	ships := []model.ShipType{model.Carrier, model.Battleship, model.Cruiser, model.Submarine, model.Destroyer}
+	ships := []model.ShipType{
+		model.Carrier,
+		model.Battleship,
+		model.Cruiser,
+		model.Submarine,
+		model.Destroyer,
+	}
 
 	for row, s := range ships {
 		err := c.PlaceShip(pid, s, model.Coordinate{X: 0, Y: row}, model.Horizontal)
@@ -50,7 +56,11 @@ func setupActiveGame(t *testing.T) (*controller.Controller, string, string) {
 }
 
 func TestSetupLobby(t *testing.T) {
+	t.Parallel()
+
 	t.Run("Test setupLobby utility", func(t *testing.T) {
+		t.Parallel()
+
 		c, p1, p2 := setupLobby(t)
 
 		if p1 == "" || p2 == "" {
@@ -71,10 +81,15 @@ func TestSetupLobby(t *testing.T) {
 	})
 
 	t.Run("Test setupActiveGame utility", func(t *testing.T) {
+		t.Parallel()
+
 		c, p1, _ := setupActiveGame(t)
 
 		if c.Info().Phase != controller.PhasePlay {
-			t.Fatalf("Expected game to be in PhasePlay after both players are ready, got %v", c.Info().Phase)
+			t.Fatalf(
+				"Expected game to be in PhasePlay after both players are ready, got %v",
+				c.Info().Phase,
+			)
 		}
 
 		if c.Info().CurrentTurn != p1 {

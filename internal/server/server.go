@@ -8,6 +8,7 @@ import (
 	"github.com/callegarimattia/battleship/internal/model"
 )
 
+// ErrGameNotFound is returned when a requested game does not exist.
 var ErrGameNotFound = errors.New("game not found")
 
 // Server functions as the entry point for the Battleship application.
@@ -52,7 +53,13 @@ func (s *Server) Join(gameID string) (string, error) {
 }
 
 // PlaceShip places a ship for a player in a specific game.
-func (s *Server) PlaceShip(gameID string, playerID string, shipName string, x, y int, orientation string) error {
+func (s *Server) PlaceShip(
+	gameID string,
+	playerID string,
+	shipName string,
+	x, y int,
+	orientation string,
+) error {
 	return executeVoid(s, gameID, func(c controller.GameController) error {
 		shipType, err := parseShipType(shipName)
 		if err != nil {

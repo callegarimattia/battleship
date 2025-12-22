@@ -1,12 +1,15 @@
 package model_test
 
 import (
+	"errors"
 	"testing"
 
 	. "github.com/callegarimattia/battleship/internal/model"
 )
 
 func TestPlayer_PlaceShip(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		setup       func(*Player) // Optional setup per test
@@ -105,13 +108,15 @@ func TestPlayer_PlaceShip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			p := NewPlayer()
 			if tt.setup != nil {
 				tt.setup(p)
 			}
 
 			err := p.PlaceShip(tt.ship, tt.coord, tt.orient)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("PlaceShip() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -119,6 +124,8 @@ func TestPlayer_PlaceShip(t *testing.T) {
 }
 
 func TestPlayer_ReceiveAttack(t *testing.T) {
+	t.Parallel()
+
 	type testCase struct {
 		name       string
 		setup      func(*Player)
@@ -161,9 +168,13 @@ func TestPlayer_ReceiveAttack(t *testing.T) {
 		{
 			name: "Sinking a ship",
 			setup: func(p *Player) {
-				_ = p.PlaceShip(Destroyer, Coordinate{X: 0, Y: 0}, Horizontal)  // Target
-				_ = p.PlaceShip(Battleship, Coordinate{X: 0, Y: 2}, Horizontal) // Dummy to keep game alive
-				_, _ = p.ReceiveAttack(Coordinate{X: 0, Y: 0})                  // Hit 1
+				_ = p.PlaceShip(Destroyer, Coordinate{X: 0, Y: 0}, Horizontal) // Target
+				_ = p.PlaceShip(
+					Battleship,
+					Coordinate{X: 0, Y: 2},
+					Horizontal,
+				) // Dummy to keep game alive
+				_, _ = p.ReceiveAttack(Coordinate{X: 0, Y: 0}) // Hit 1
 			},
 			coord:      Coordinate{X: 1, Y: 0}, // Hit 2
 			wantResult: ResultSunk,
@@ -183,13 +194,15 @@ func TestPlayer_ReceiveAttack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			p := NewPlayer()
 			if tt.setup != nil {
 				tt.setup(p)
 			}
 
 			res, err := p.ReceiveAttack(tt.coord)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("ReceiveAttack() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if res != tt.wantResult {
@@ -200,10 +213,12 @@ func TestPlayer_ReceiveAttack(t *testing.T) {
 }
 
 func TestPlayer_SetReady(t *testing.T) {
+	t.Parallel()
+
 	p := NewPlayer()
 
 	// 1. Try setting ready before placing ships -> Error
-	if err := p.SetReady(); err != ErrFleetIncomplete {
+	if err := p.SetReady(); !errors.Is(err, ErrFleetIncomplete) {
 		t.Errorf("Expected ErrFleetIncomplete, got %v", err)
 	}
 
@@ -243,6 +258,8 @@ func TestPlayer_SetReady(t *testing.T) {
 
 func TestPlayer_Helpers(t *testing.T) {
 	t.Run("ID and String", func(t *testing.T) {
+		t.Parallel()
+
 		p := NewPlayer()
 		if p.ID() == "" {
 			t.Error("Player ID should not be empty")
@@ -254,6 +271,8 @@ func TestPlayer_Helpers(t *testing.T) {
 	})
 
 	t.Run("HasLost", func(t *testing.T) {
+		t.Parallel()
+
 		p := NewPlayer()
 		// New player has 0 ships afloat -> HasLost = true
 		if !p.HasLost() {
@@ -267,15 +286,23 @@ func TestPlayer_Helpers(t *testing.T) {
 	})
 
 	t.Run("MarksShotResult", func(t *testing.T) {
+		t.Parallel()
+
 		p := NewPlayer()
 
 		// Out of bounds
-		if err := p.MarksShotResult(Coordinate{X: -1, Y: 0}, ResultMiss); err != ErrOutOfBounds {
+		if err := p.MarksShotResult(Coordinate{X: -1, Y: 0}, ResultMiss); !errors.Is(
+			err,
+			ErrOutOfBounds,
+		) {
 			t.Errorf("Expected ErrOutOfBounds, got %v", err)
 		}
 
 		// Invalid result
-		if err := p.MarksShotResult(Coordinate{X: 0, Y: 0}, ResultInvalid); err != ErrInvalidShotResult {
+		if err := p.MarksShotResult(Coordinate{X: 0, Y: 0}, ResultInvalid); !errors.Is(
+			err,
+			ErrInvalidShotResult,
+		) {
 			t.Errorf("Expected ErrInvalidShotResult, got %v", err)
 		}
 
@@ -286,6 +313,8 @@ func TestPlayer_Helpers(t *testing.T) {
 	})
 
 	t.Run("ShipType Size", func(t *testing.T) {
+		t.Parallel()
+
 		invalid := ShipType("Invalid")
 		if size := invalid.Size(); size != 0 {
 			t.Errorf("Expected size 0 for invalid ship type, got %d", size)

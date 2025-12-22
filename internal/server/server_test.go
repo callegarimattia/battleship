@@ -8,6 +8,8 @@ import (
 )
 
 func TestServer_CreateGame(t *testing.T) {
+	t.Parallel()
+
 	srv := New()
 	id, err := srv.CreateGame()
 	require.NoError(t, err)
@@ -20,12 +22,16 @@ func TestServer_CreateGame(t *testing.T) {
 }
 
 func TestServer_GetGame_NotFound(t *testing.T) {
+	t.Parallel()
+
 	srv := New()
 	_, err := srv.Info("non-existent-id")
 	assert.ErrorIs(t, err, ErrGameNotFound)
 }
 
 func TestServer_Join(t *testing.T) {
+	t.Parallel()
+
 	srv := New()
 	gameID, err := srv.CreateGame()
 	require.NoError(t, err)
@@ -42,6 +48,8 @@ func TestServer_Join(t *testing.T) {
 }
 
 func TestServer_MultipleGames(t *testing.T) {
+	t.Parallel()
+
 	srv := New()
 
 	// Create two games
@@ -67,6 +75,8 @@ func TestServer_MultipleGames(t *testing.T) {
 }
 
 func TestServer_Delegation(t *testing.T) {
+	t.Parallel()
+
 	// A simple test to ensure methods are wired up
 	// We count on controller tests for logic, just checking routing here.
 	srv := New()

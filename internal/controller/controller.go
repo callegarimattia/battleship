@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// GameController defines the interface for managing a Battleship game.
 type GameController interface {
 	Info() GameInfo
 	Join() (string, error)
@@ -77,7 +78,12 @@ func (c *Controller) Join() (string, error) {
 //   - ErrOverlap: If the ship overlaps with an existing ship.
 //   - ErrShipTypeDepleted: If the player has no more ships of this type to place.
 //   - ErrInvalidCoordinates: If placements are out of bounds.
-func (c *Controller) PlaceShip(playerID string, ship model.ShipType, start model.Coordinate, orientation model.Orientation) error {
+func (c *Controller) PlaceShip(
+	playerID string,
+	ship model.ShipType,
+	start model.Coordinate,
+	orientation model.Orientation,
+) error {
 	player, err := c.validateRequest(playerID, PhaseSetup)
 	if err != nil {
 		return err
@@ -152,7 +158,10 @@ func (c *Controller) Fire(attackerID string, target model.Coordinate) (model.Sho
 // ---- Helper Methods ----
 
 // validateRequest checks if the request is valid for the current game state.
-func (c *Controller) validateRequest(playerID string, expectedPhase GamePhase) (*model.Player, error) {
+func (c *Controller) validateRequest(
+	playerID string,
+	expectedPhase GamePhase,
+) (*model.Player, error) {
 	if c.phase == PhaseGameOver {
 		return nil, ErrGameOver
 	}
