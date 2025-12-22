@@ -37,6 +37,7 @@ linters:
           - funlen
           - lll
           - revive
+          - gocritic
 
   enable:
     # Bugs & Correctness

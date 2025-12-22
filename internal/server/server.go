@@ -76,14 +76,14 @@ func (s *Server) PlaceShip(
 }
 
 // Ready marks a player as ready in a specific game.
-func (s *Server) Ready(gameID string, playerID string) error {
+func (s *Server) Ready(gameID, playerID string) error {
 	return executeVoid(s, gameID, func(c controller.GameController) error {
 		return c.Ready(playerID)
 	})
 }
 
 // Fire executes a player's attack in a specific game.
-func (s *Server) Fire(gameID string, attackerID string, x, y int) (string, error) {
+func (s *Server) Fire(gameID, attackerID string, x, y int) (string, error) {
 	return execute(s, gameID, func(c controller.GameController) (string, error) {
 		result, err := c.Fire(attackerID, model.Coordinate{X: x, Y: y})
 		if err != nil {
