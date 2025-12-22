@@ -11,10 +11,10 @@ import (
 func TestController_Join(t *testing.T) {
 	t.Parallel()
 
-	c := controller.NewController()
-
 	t.Run("Game starts in Waiting Phase", func(t *testing.T) {
 		t.Parallel()
+
+		c := controller.NewController()
 
 		if c.Info().Phase != controller.PhaseWaiting {
 			t.Errorf("Expected PhaseWaiting, got %v", c.Info().Phase)
@@ -23,6 +23,8 @@ func TestController_Join(t *testing.T) {
 
 	t.Run("transitions correctly", func(t *testing.T) {
 		t.Parallel()
+
+		c := controller.NewController()
 
 		// 1. First player
 		id1, err := c.Join()
@@ -202,6 +204,7 @@ func TestController_Ready(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			c, pid := tt.setup()
 			err := c.Ready(pid)
 
