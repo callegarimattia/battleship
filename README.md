@@ -1,4 +1,4 @@
-# battleship_go
+# battleship
 Using TDD to create the battleship game, in Go.
 
 ## Specification
