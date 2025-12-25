@@ -1,5 +1,5 @@
 test:
-	go test -race -cover ./...
+	go test -v -race -cover ./...
 lint:
 	golangci-lint run
 fmt:
