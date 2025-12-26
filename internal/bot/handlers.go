@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -143,19 +144,17 @@ func (b *DiscordBot) handleList(
 		return
 	}
 
-	description := ""
+	var description strings.Builder
 	for _, match := range matches {
-		description += fmt.Sprintf(
-			"**%s** - Host: %s (%d/2 players)\n",
+		fmt.Fprintf(&description, "**%s** - Host: %s (%d/2 players)\n",
 			match.ID,
 			match.HostName,
-			match.PlayerCount,
-		)
+			match.PlayerCount)
 	}
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "📋 Available Matches",
-		Description: description,
+		Description: description.String(),
 		Color:       0x0099ff,
 		Footer: &discordgo.MessageEmbedFooter{
 			Text: "Use /battleship join <match_id> to join a match",
