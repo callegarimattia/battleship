@@ -6,6 +6,8 @@ info:
 servers:
   - url: http://localhost:8080
     description: Local Development Server
+  - url: https://battleship-server-co28.onrender.com
+    description: Production Server
 
 tags:
   - name: Auth
