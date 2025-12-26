@@ -89,7 +89,7 @@ func (b *DiscordBot) handleHost(
 		},
 	}
 
-	respondEmbed(s, i, embed)
+	respondEmbed(s, i, embed, false) // Public announcement
 }
 
 func (b *DiscordBot) handleJoin(
@@ -122,7 +122,7 @@ func (b *DiscordBot) handleJoin(
 		},
 	}
 
-	respondEmbed(s, i, embed)
+	respondEmbed(s, i, embed, true) // Ephemeral
 }
 
 func (b *DiscordBot) handleList(
@@ -142,7 +142,7 @@ func (b *DiscordBot) handleList(
 			Description: "No matches available. Use `/battleship host` to create one!",
 			Color:       0xffaa00,
 		}
-		respondEmbed(s, i, embed)
+		respondEmbed(s, i, embed, true) // Ephemeral
 		return
 	}
 
@@ -165,7 +165,7 @@ func (b *DiscordBot) handleList(
 		},
 	}
 
-	respondEmbed(s, i, embed)
+	respondEmbed(s, i, embed, true) // Ephemeral
 }
 
 func (b *DiscordBot) handlePlace(
@@ -205,7 +205,7 @@ func (b *DiscordBot) handlePlace(
 
 	embed := FormatGameState(&view)
 	embed.Title = "🚢 Ship Placed!"
-	respondEmbed(s, i, embed)
+	respondEmbed(s, i, embed, true) // Ephemeral
 }
 
 func (b *DiscordBot) handleAttack(
@@ -246,7 +246,7 @@ func (b *DiscordBot) handleAttack(
 
 	embed := FormatGameState(&view)
 	embed.Title = fmt.Sprintf("💥 Attack at (%d, %d)!", x, y)
-	respondEmbed(s, i, embed)
+	respondEmbed(s, i, embed, true) // Ephemeral
 }
 
 func (b *DiscordBot) handleStatus(
@@ -277,7 +277,7 @@ func (b *DiscordBot) handleStatus(
 	}
 
 	embed := FormatGameState(&view)
-	respondEmbed(s, i, embed)
+	respondEmbed(s, i, embed, true) // Ephemeral
 }
 
 // Helper functions for responding
@@ -286,11 +286,18 @@ func respondEmbed(
 	s *discordgo.Session,
 	i *discordgo.InteractionCreate,
 	embed *discordgo.MessageEmbed,
+	ephemeral bool,
 ) {
+	flags := discordgo.MessageFlags(0)
+	if ephemeral {
+		flags = discordgo.MessageFlagsEphemeral
+	}
+
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
+			Flags:  flags,
 		},
 	})
 	if err != nil {
@@ -304,5 +311,5 @@ func respondError(s *discordgo.Session, i *discordgo.InteractionCreate, message 
 		Description: message,
 		Color:       0xff0000,
 	}
-	respondEmbed(s, i, embed)
+	respondEmbed(s, i, embed, true) // Errors are always ephemeral
 }
