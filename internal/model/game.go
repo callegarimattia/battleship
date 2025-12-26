@@ -184,22 +184,33 @@ func StandardFleet() map[int]int {
 // GetView returns the DTO seen by a specific observer (playerID).
 func (g *Game) GetView(observerID string) (dto.GameView, error) {
 	var me, enemy *Player
-	switch observerID {
-	case g.player1.id:
-		me, enemy = g.player1, g.player2
-	case g.player2.id:
-		me, enemy = g.player2, g.player1
+
+	// Check if player1 exists and matches
+	switch {
+	case g.player1 != nil && observerID == g.player1.id:
+		me = g.player1
+		enemy = g.player2
+	case g.player2 != nil && observerID == g.player2.id:
+		me = g.player2
+		enemy = g.player1
 	default:
 		return dto.GameView{}, ErrUnknownPlayer
 	}
 
-	return dto.GameView{
+	// Build the view
+	view := dto.GameView{
 		State:  toDTOState(g.state),
 		Turn:   g.turn,
 		Winner: g.winner,
-		Me:     me.GetView(false),   // Full view
-		Enemy:  enemy.GetView(true), // Fog of war
-	}, nil
+		Me:     me.GetView(false), // Full view
+	}
+
+	// Only add enemy view if enemy exists
+	if enemy != nil {
+		view.Enemy = enemy.GetView(true) // Fog of war
+	}
+
+	return view, nil
 }
 
 // GetView returns the DTO representation of the player.

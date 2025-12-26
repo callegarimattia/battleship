@@ -85,20 +85,26 @@ func TestMemoryService_Attack_NotStarted(t *testing.T) {
 	assert.Error(t, err) // Game not started
 }
 
-func TestMemoryService_MaxGamesLimit(t *testing.T) {
+func TestMemoryService_SingleActiveGameLimit(t *testing.T) {
 	t.Parallel()
 	s := service.NewMemoryService()
 	ctx := context.Background()
-	hostID := "spammer"
 
-	// Create max allowed games (5)
-	for i := 0; i < 5; i++ {
-		_, err := s.CreateMatch(ctx, hostID)
-		require.NoError(t, err, "should create game %d", i+1)
-	}
+	// Create first game
+	game1, err := s.CreateMatch(ctx, "alice")
+	require.NoError(t, err, "should create first game")
+	require.NotEmpty(t, game1)
 
-	// Try to create the 6th game
-	_, err := s.CreateMatch(ctx, hostID)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "max active games limit reached")
+	// Try to create second game while first is active - should fail
+	_, err = s.CreateMatch(ctx, "alice")
+	require.Error(t, err, "should not allow creating second game")
+	require.Contains(t, err.Error(), "already in an active game")
+
+	// Try to join another game while in first game - should fail
+	game2, err := s.CreateMatch(ctx, "bob")
+	require.NoError(t, err)
+
+	_, err = s.JoinMatch(ctx, game2, "alice")
+	require.Error(t, err, "should not allow joining another game")
+	require.Contains(t, err.Error(), "already in an active game")
 }

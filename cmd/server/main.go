@@ -2,13 +2,13 @@
 package main
 
 import (
+	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/callegarimattia/battleship/internal/api"
 	"github.com/callegarimattia/battleship/internal/controller"
+	"github.com/callegarimattia/battleship/internal/env"
 	"github.com/callegarimattia/battleship/internal/service"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -30,8 +30,13 @@ type Application struct {
 // Setup initializes the Echo instance and routes.
 // It is separate from Run so that tests can initialize without starting the listener.
 func (a *Application) Setup() {
+	cfg, err := env.LoadServerConfig()
+	if err != nil {
+		log.Fatalf("Failed to load server config: %v", err)
+	}
+
 	memEngine := service.NewMemoryService()
-	authService := service.NewIdentityService()
+	authService := service.NewIdentityService(cfg.JWTSecret)
 	appCtrl := controller.NewAppController(authService, memEngine, memEngine)
 
 	a.E = echo.New()
@@ -42,14 +47,7 @@ func (a *Application) Setup() {
 	a.E.Use(middleware.Secure())
 	a.E.Use(middleware.CORS())
 	a.E.Use(middleware.BodyLimit("1M"))
-
-	rateLimit := 20
-	if val := os.Getenv("RATE_LIMIT"); val != "" {
-		if i, err := strconv.Atoi(val); err == nil {
-			rateLimit = i
-		}
-	}
-	a.E.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(rate.Limit(rateLimit))))
+	a.E.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(rate.Limit(cfg.RateLimit))))
 
 	h := api.NewEchoHandler(appCtrl)
 
@@ -65,14 +63,9 @@ func (a *Application) Setup() {
 	g.GET("", h.ListMatches)
 
 	// Protected routes
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "secret"
-	}
-
 	protected := g.Group("")
 	protected.Use(echojwt.WithConfig(echojwt.Config{
-		SigningKey: []byte(secret),
+		SigningKey: []byte(cfg.JWTSecret),
 	}))
 	protected.Use(api.RequirePlayerID)
 
@@ -87,13 +80,13 @@ func (a *Application) Setup() {
 func (a *Application) Run() error {
 	a.Setup()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	cfg, err := env.LoadServerConfig()
+	if err != nil {
+		log.Fatalf("Failed to load server config: %v", err)
 	}
 
 	s := &http.Server{
-		Addr:              ":" + port,
+		Addr:              ":" + cfg.Port,
 		Handler:           a.E,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

@@ -1,3 +1,9 @@
+# 1. Check if .env exists, then include it
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
 build:
 	go build -o bin/battleship ./cmd/server
 
@@ -19,10 +25,13 @@ fmt:
 generate:
 	mockery
 
+run-bot:
+	go run ./cmd/bot
+
 docker-run:
 	docker build -t battleship .
 	docker run -p 8080:8080 battleship
 
-all: fmt lint generate test 
+all: fmt lint generate test
 
-.PHONY: build test lint fmt generate docker-build docker-run
+.PHONY: build test lint fmt generate docker-run

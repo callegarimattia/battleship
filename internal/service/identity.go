@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 	"time"
 
@@ -24,13 +23,19 @@ type MemoryIdentityService struct {
 	// Identity Map: Links a Platform ID (e.g., "discord:123") to an Internal User ID.
 	// Key: "source:extID" -> Value: "user-uuid"
 	identities map[string]string
+
+	jwtSecret string
 }
 
 // NewIdentityService initializes the storage.
-func NewIdentityService() *MemoryIdentityService {
+func NewIdentityService(jwtSecret string) *MemoryIdentityService {
+	if jwtSecret == "" {
+		jwtSecret = "secret"
+	}
 	return &MemoryIdentityService{
 		users:      make(map[string]dto.User),
 		identities: make(map[string]string),
+		jwtSecret:  jwtSecret,
 	}
 }
 
@@ -62,11 +67,6 @@ func (s *MemoryIdentityService) LoginOrRegister(
 	}
 
 	// Generate JWT
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "secret"
-	}
-
 	claims := jwt.MapClaims{
 		"sub":  user.ID,
 		"name": user.Username,
@@ -74,7 +74,7 @@ func (s *MemoryIdentityService) LoginOrRegister(
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString([]byte(secret))
+	signedToken, err := token.SignedString([]byte(s.jwtSecret))
 	if err != nil {
 		return dto.AuthResponse{}, err
 	}

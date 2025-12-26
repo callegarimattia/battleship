@@ -11,7 +11,7 @@ import (
 
 func TestMemoryIdentityService_LoginOrRegister(t *testing.T) {
 	t.Parallel()
-	auth := service.NewIdentityService()
+	auth := service.NewIdentityService("test-secret")
 	ctx := context.Background()
 
 	// 1. Register new user

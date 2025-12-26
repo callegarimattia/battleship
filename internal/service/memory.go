@@ -13,8 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const maxGamesPerUser = 5
-
 var (
 	_ controller.LobbyService = (*MemoryService)(nil)
 	_ controller.GameService  = (*MemoryService)(nil)
@@ -79,10 +77,31 @@ func (s *MemoryService) gc() {
 	}
 }
 
+// isUserInActiveGame checks if a user is currently in any active game.
+// Returns true and the match ID if found, false and empty string otherwise.
+func (s *MemoryService) isUserInActiveGame(playerID string) (isInGame bool, matchID string) {
+	s.gamesMu.RLock()
+	defer s.gamesMu.RUnlock()
+
+	for id, sg := range s.games {
+		if sg.host == playerID || sg.guest == playerID {
+			sg.mu.Lock()
+			isGameOver := sg.game.IsGameOver()
+			sg.mu.Unlock()
+
+			if !isGameOver {
+				return true, id
+			}
+		}
+	}
+	return false, ""
+}
+
 // CreateMatch initializes a new game with the host player joined.
 func (s *MemoryService) CreateMatch(_ context.Context, hostID string) (string, error) {
-	if count := s.countActiveGamesByHost(hostID); count >= maxGamesPerUser {
-		return "", errors.New("max active games limit reached")
+	// Check if user is already in an active game
+	if inGame, matchID := s.isUserInActiveGame(hostID); inGame {
+		return "", fmt.Errorf("player is already in an active game (Match ID: %s)", matchID)
 	}
 
 	gameID := fmt.Sprintf("game-%v", uuid.NewString())
@@ -118,7 +137,7 @@ func (s *MemoryService) ListMatches(_ context.Context) ([]dto.MatchSummary, erro
 			ID:          matchID,
 			CreatedAt:   sg.createdAt,
 			HostName:    sg.host,
-			PlayerCount: playerCountUnsafe(sg),
+			PlayerCount: sg.playerCount(),
 		})
 		sg.mu.Unlock()
 	}
@@ -131,6 +150,11 @@ func (s *MemoryService) JoinMatch(
 	_ context.Context,
 	matchID, playerID string,
 ) (dto.GameView, error) {
+	// Check if user is already in an active game
+	if inGame, existingMatchID := s.isUserInActiveGame(playerID); inGame {
+		return dto.GameView{}, fmt.Errorf("player is already in an active game (Match ID: %s)", existingMatchID)
+	}
+
 	s.gamesMu.RLock()
 	defer s.gamesMu.RUnlock()
 
@@ -162,30 +186,14 @@ func (s *MemoryService) getSafeGame(matchID string) (*safeGame, error) {
 	return sg, nil
 }
 
-func playerCountUnsafe(sg *safeGame) (count int) {
+// playerCount returns the number of players in the game.
+func (sg *safeGame) playerCount() int {
+	count := 0
 	if sg.host != "" {
 		count++
 	}
 	if sg.guest != "" {
 		count++
-	}
-	return count
-}
-
-func (s *MemoryService) countActiveGamesByHost(hostID string) int {
-	s.gamesMu.RLock()
-	defer s.gamesMu.RUnlock()
-
-	count := 0
-	for _, g := range s.games {
-		g.mu.Lock()
-		isHost := g.host == hostID
-		isGameOver := g.game.IsGameOver()
-		g.mu.Unlock()
-
-		if isHost && !isGameOver {
-			count++
-		}
 	}
 	return count
 }

@@ -48,7 +48,7 @@ graph TD
 - **`internal/service`**: Business logic, state management, and storage.
 - **`internal/controller`**: Use-case orchestration. This is the **Shared Entry Point** for all platforms.
 - **`internal/api`**: HTTP Adapter (Echo) for Web/CLI clients.
-- **`internal/bot`** (Future): Discord Adapter using `discordgo`.
+- **`internal/bot`**: Discord Adapter using `discordgo` for Discord integration.
 
 ## Getting Started
 
@@ -71,6 +71,47 @@ The server will start on port `8080`.
 - **API Documentation**: [docs/openapi.yaml](docs/openapi.yaml)
 - **Game Specification**: [docs/spec.md](docs/spec.md)
 - **Project Roadmap**: [docs/roadmap.md](docs/roadmap.md)
+
+### Running the Discord Bot
+
+To run the Discord bot:
+
+1. **Create a Discord Application**:
+
+   - Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+   - Click "New Application" and give it a name
+   - Go to the "Bot" section and click "Add Bot"
+   - Copy the bot token
+
+2. **Set Environment Variables**:
+
+   ```bash
+   export DISCORD_TOKEN="your-bot-token-here"
+   export DISCORD_APP_ID="your-application-id-here"
+   ```
+
+3. **Invite the Bot to Your Server**:
+
+   - In the Developer Portal, go to "OAuth2" → "URL Generator"
+   - Select scopes: `bot` and `applications.commands`
+   - Select bot permissions: `Send Messages`, `Use Slash Commands`
+   - Copy the generated URL and open it in your browser to invite the bot
+
+4. **Run the Bot**:
+
+   ```bash
+   go run cmd/bot/main.go
+   ```
+
+5. **Use Slash Commands in Discord**:
+   - `/battleship host` - Create a new game
+   - `/battleship list` - List available matches
+   - `/battleship join <match_id>` - Join a match
+   - `/battleship place <size> <x> <y> <vertical>` - Place ships on your board
+   - `/battleship attack <x> <y>` - Attack opponent coordinates
+   - `/battleship status` - View current game state
+
+> **Note**: Users can only be in **one active game at a time**. You must finish your current game before hosting or joining another. All commands are fully functional.
 
 ## Development
 
