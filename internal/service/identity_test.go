@@ -24,7 +24,12 @@ func TestMemoryIdentityService_LoginOrRegister(t *testing.T) {
 	user2, err := auth.LoginOrRegister(ctx, "AliceChanged", "web", "Alice")
 	require.NoError(t, err)
 	assert.Equal(t, user1.ID, user2.ID, "Should return same user ID")
-	assert.Equal(t, "Alice", user2.Username, "Should return original username (no update logic implemented)")
+	assert.Equal(
+		t,
+		"Alice",
+		user2.Username,
+		"Should return original username (no update logic implemented)",
+	)
 
 	// 3. Register different user
 	user3, err := auth.LoginOrRegister(ctx, "Bob", "discord", "12345")

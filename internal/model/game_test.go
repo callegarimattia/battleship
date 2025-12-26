@@ -30,7 +30,12 @@ func TestNewGame(t *testing.T) {
 		5,
 		m.Horizontal,
 	)
-	assert.ErrorIs(t, err, m.ErrNoShipsRemaining, "NewGame(custom) allowed placing invalid ship size")
+	assert.ErrorIs(
+		t,
+		err,
+		m.ErrNoShipsRemaining,
+		"NewGame(custom) allowed placing invalid ship size",
+	)
 }
 
 func TestJoin(t *testing.T) {
@@ -99,7 +104,12 @@ func TestStartGame_Transitions(t *testing.T) {
 	assert.ErrorIs(t, err, m.ErrNotInSetup, "Expected ErrNotInSetup when placing during game")
 
 	err = g.StartGame()
-	assert.ErrorIs(t, err, m.ErrNotInSetup, "Expected ErrNotInSetup when starting already started game")
+	assert.ErrorIs(
+		t,
+		err,
+		m.ErrNotInSetup,
+		"Expected ErrNotInSetup when starting already started game",
+	)
 }
 
 // TestAttack_TurnLogic verifies turn enforcement and switching

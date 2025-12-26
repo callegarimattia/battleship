@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setupControllerTest(t *testing.T) (*controller.AppController, *mocks.IdentityService, *mocks.LobbyService, *mocks.GameService) {
+func setupControllerTest(
+	t *testing.T,
+) (*controller.AppController, *mocks.IdentityService, *mocks.LobbyService, *mocks.GameService) {
 	mockAuth := mocks.NewIdentityService(t)
 	mockLobby := mocks.NewLobbyService(t)
 	mockGame := mocks.NewGameService(t)

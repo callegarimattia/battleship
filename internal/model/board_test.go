@@ -190,7 +190,15 @@ func TestReceiveShot(t *testing.T) {
 
 	for _, tt := range tests {
 		got := b.ReceiveShot(tt.coord)
-		assert.Equal(t, tt.wantResult, got, "ReceiveShot(%v) = %v, want %v", tt.coord, got, tt.wantResult)
+		assert.Equal(
+			t,
+			tt.wantResult,
+			got,
+			"ReceiveShot(%v) = %v, want %v",
+			tt.coord,
+			got,
+			tt.wantResult,
+		)
 	}
 }
 

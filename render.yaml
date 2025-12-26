@@ -9,3 +9,5 @@ services:
     envVars:
       # - key: PORT
       #   value: 8080
+      - key: RATE_LIMIT
+        value: 20

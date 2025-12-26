@@ -4,6 +4,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/callegarimattia/battleship/internal/api"
@@ -11,6 +12,7 @@ import (
 	"github.com/callegarimattia/battleship/internal/service"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -39,7 +41,14 @@ func (a *Application) Setup() {
 	a.E.Use(middleware.Secure())
 	a.E.Use(middleware.CORS())
 	a.E.Use(middleware.BodyLimit("1M"))
-	a.E.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
+
+	rateLimit := 20
+	if val := os.Getenv("RATE_LIMIT"); val != "" {
+		if i, err := strconv.Atoi(val); err == nil {
+			rateLimit = i
+		}
+	}
+	a.E.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(rate.Limit(rateLimit))))
 
 	h := api.NewEchoHandler(appCtrl)
 

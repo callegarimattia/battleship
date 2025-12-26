@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/callegarimattia/battleship/internal/dto"
@@ -15,6 +16,10 @@ import (
 )
 
 func TestE2E_FullGameScenario(t *testing.T) {
+	// Disable rate limiting for E2E tests
+	os.Setenv("RATE_LIMIT", "1000")
+	defer os.Unsetenv("RATE_LIMIT")
+
 	t.Parallel()
 
 	app := &Application{}
@@ -102,7 +107,11 @@ type testResponse struct {
 	Body *bytes.Buffer
 }
 
-func (c *testClient) do(method, path string, body interface{}, headers map[string]string) *testResponse {
+func (c *testClient) do(
+	method, path string,
+	body interface{},
+	headers map[string]string,
+) *testResponse {
 	var reqBody io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -152,23 +161,47 @@ func (c *testClient) createMatch(playerID string) string {
 }
 
 func (c *testClient) joinMatch(matchID, playerID string) {
-	rec := c.do(http.MethodPost, "/matches/"+matchID+"/join", nil, map[string]string{"X-Player-ID": playerID})
+	rec := c.do(
+		http.MethodPost,
+		"/matches/"+matchID+"/join",
+		nil,
+		map[string]string{"X-Player-ID": playerID},
+	)
 	require.Equal(c.t, http.StatusOK, rec.Code)
 }
 
-func (c *testClient) placeShip(matchID, playerID string, size, x, y int, vertical bool) { //nolint:unparam
+func (c *testClient) placeShip(
+	matchID, playerID string,
+	size, x, y int, //nolint:unparam
+	vertical bool, //nolint:unparam
+) {
 	payload := map[string]interface{}{
 		"size":     size,
 		"x":        x,
 		"y":        y,
 		"vertical": vertical,
 	}
-	rec := c.do(http.MethodPost, "/matches/"+matchID+"/place", payload, map[string]string{"X-Player-ID": playerID})
-	require.Equal(c.t, http.StatusOK, rec.Code, fmt.Sprintf("placeShip failed for size %d at %d,%d", size, x, y))
+	rec := c.do(
+		http.MethodPost,
+		"/matches/"+matchID+"/place",
+		payload,
+		map[string]string{"X-Player-ID": playerID},
+	)
+	require.Equal(
+		c.t,
+		http.StatusOK,
+		rec.Code,
+		fmt.Sprintf("placeShip failed for size %d at %d,%d", size, x, y),
+	)
 }
 
 func (c *testClient) getMatchState(matchID, playerID string) dto.GameView {
-	rec := c.do(http.MethodGet, "/matches/"+matchID, nil, map[string]string{"X-Player-ID": playerID})
+	rec := c.do(
+		http.MethodGet,
+		"/matches/"+matchID,
+		nil,
+		map[string]string{"X-Player-ID": playerID},
+	)
 	require.Equal(c.t, http.StatusOK, rec.Code)
 
 	var state dto.GameView
@@ -179,7 +212,12 @@ func (c *testClient) getMatchState(matchID, playerID string) dto.GameView {
 
 func (c *testClient) attack(matchID, playerID string, x, y int) dto.GameView {
 	payload := map[string]interface{}{"x": x, "y": y}
-	rec := c.do(http.MethodPost, "/matches/"+matchID+"/attack", payload, map[string]string{"X-Player-ID": playerID})
+	rec := c.do(
+		http.MethodPost,
+		"/matches/"+matchID+"/attack",
+		payload,
+		map[string]string{"X-Player-ID": playerID},
+	)
 	require.Equal(c.t, http.StatusOK, rec.Code, fmt.Sprintf("attack failed at %d,%d", x, y))
 
 	var state dto.GameView
