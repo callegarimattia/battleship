@@ -21,6 +21,7 @@ FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 
 COPY --from=builder /app/battleship /battleship
+COPY --from=builder /app/docs /docs
 
 EXPOSE 8080
 
