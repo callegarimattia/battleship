@@ -46,7 +46,7 @@ graph TD
 To start the server locally (currently HTTP only):
 
 ```bash
-go run cmd/server/*.go
+make run
 ```
 
 The server will start on port `8080`.
@@ -56,6 +56,21 @@ The server will start on port `8080`.
 - **Game Specification**: [docs/spec.md](docs/spec.md)
 
 ## Development
+
+### Live Reload
+
+For a better development experience, we use [Air](https://github.com/air-verse/air) to automatically reload the server on code changes.
+
+1. **Install Air**:
+
+   ```bash
+   go install github.com/air-verse/air@latest
+   ```
+
+2. **Run with Air**:
+   ```bash
+   air
+   ```
 
 ### Running Tests
 
@@ -68,3 +83,39 @@ make test
 ### End-to-End Testing
 
 The project includes specific E2E scenarios to verify full game loops. These are located in `cmd/server/e2e_test.go` and currently simulate the HTTP flow.
+
+## Deployment
+
+### Docker
+
+You can package and run the application using Docker.
+
+**Build the image**:
+
+```bash
+make docker-build
+```
+
+**Run the container**:
+
+```bash
+make docker-run
+```
+
+Only the application binary is included in the final image (Distroless), keeping it lightweight and secure.
+
+## CI/CD Service
+
+This repository uses **GitHub Actions** for Continuous Integration and Delivery.
+
+- **CI (`.github/workflows/ci.yml`)**:
+
+  - Validates code formatting/linting using `golangci-lint`.
+  - Runs all unit and integration tests with race detection.
+  - Verifies that the server binary compiles.
+  - Triggered on every Push and Pull Request to `main`.
+
+- **Release (`.github/workflows/release.yml`)**:
+  - Automatically creates a new Release when a tag starting with `v` (e.g., `v1.0.0`) is pushed.
+  - Uses [GoReleaser](https://goreleaser.com/) to build binaries for Linux, macOS, and Windows.
+  - Uploads artifacts directly to the GitHub Release page.

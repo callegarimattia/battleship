@@ -1,3 +1,9 @@
+build:
+	go build -o bin/battleship ./cmd/server
+
+run:
+	go run ./cmd/server
+
 test:
 	go test -v -race -coverprofile=coverage.out ./...
 	grep -v "/mocks/" coverage.out > coverage.final.out
@@ -10,4 +16,10 @@ fmt:
 generate:
 	mockery
 
-.PHONY: test lint fmt generate
+docker-build:
+	docker build -t battleship .
+
+docker-run:
+	docker run -p 8080:8080 battleship
+
+.PHONY: build test lint fmt generate docker-build docker-run
