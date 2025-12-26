@@ -12,6 +12,19 @@ This project implements a HEXAGONAL implementation of the classic Battleship gam
 
 The architecture strictly separates the **Core Domain** (Game Logic) from the **Primary Adapters** (HTTP, Discord), ensuring consistent rules and state validation across all platforms.
 
+### Security
+
+- **Timeouts**: Strict read/write/idle timeouts to prevent Slowloris attacks.
+- **Rate Limiting**: 20 requests/second per IP.
+- **Security Headers**: HSTS, X-Frame-Options, X-XSS-Protection enabled.
+
+### System Limits & Policies
+
+- **Max Active Games**: Each user is limited to **5 active games** to prevent resource exhaustion.
+- **Game Cleanup**:
+  - **Finished Games**: Removed 10 minutes after completion.
+  - **Stale Games**: Removed 24 hours after the last activity.
+
 ## Architecture
 
 ```mermaid
@@ -54,6 +67,7 @@ The server will start on port `8080`.
 - **API Base URL**: `http://localhost:8080`
 - **API Documentation**: [docs/openapi.yaml](docs/openapi.yaml)
 - **Game Specification**: [docs/spec.md](docs/spec.md)
+- **Project Roadmap**: [docs/roadmap.md](docs/roadmap.md)
 
 ## Development
 

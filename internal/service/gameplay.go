@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/callegarimattia/battleship/internal/dto"
 	"github.com/callegarimattia/battleship/internal/model"
@@ -35,6 +36,7 @@ func (s *MemoryService) PlaceShip(
 	}
 
 	_ = sg.game.StartGame()
+	sg.updatedAt = time.Now()
 
 	return sg.game.GetView(playerID)
 }

@@ -2,6 +2,10 @@
 package main
 
 import (
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/callegarimattia/battleship/internal/api"
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/service"
@@ -29,10 +33,19 @@ func (a *Application) Setup() {
 
 	a.E = echo.New()
 
+	// Middleware
 	a.E.Use(middleware.RequestLogger())
 	a.E.Use(middleware.Recover())
+	a.E.Use(middleware.Secure())
+	a.E.Use(middleware.CORS())
+	a.E.Use(middleware.BodyLimit("1M"))
+	a.E.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
 
 	h := api.NewEchoHandler(appCtrl)
+
+	a.E.GET("/health", func(c echo.Context) error {
+		return c.String(http.StatusOK, "OK")
+	})
 
 	a.E.Static("/docs", "docs")
 
@@ -51,5 +64,20 @@ func (a *Application) Setup() {
 // Run calls Setup and then starts the server.
 func (a *Application) Run() error {
 	a.Setup()
-	return a.E.Start(":8080")
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	s := &http.Server{
+		Addr:              ":" + port,
+		Handler:           a.E,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+	}
+
+	return s.ListenAndServe()
 }

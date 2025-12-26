@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const maxGamesPerUser = 5
+
 var (
 	_ controller.LobbyService = (*MemoryService)(nil)
 	_ controller.GameService  = (*MemoryService)(nil)
@@ -30,23 +32,65 @@ type safeGame struct {
 	host      string
 	guest     string
 	createdAt time.Time
+	updatedAt time.Time
 	mu        sync.Mutex
 }
 
 // NewMemoryService creates a new in-memory lobby and game service.
 func NewMemoryService() *MemoryService {
-	return &MemoryService{
+	s := &MemoryService{
 		games: make(map[string]*safeGame),
+	}
+	go s.cleanupLoop()
+	return s
+}
+
+func (s *MemoryService) cleanupLoop() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.gc()
+	}
+}
+
+func (s *MemoryService) gc() {
+	s.gamesMu.Lock()
+	defer s.gamesMu.Unlock()
+
+	now := time.Now()
+	for id, g := range s.games {
+		g.mu.Lock()
+		isFinished := g.game.IsGameOver()
+		lastUpdate := g.updatedAt
+		g.mu.Unlock()
+
+		if isFinished {
+			// Remove finished games after 10m
+			if now.Sub(lastUpdate) > 10*time.Minute {
+				delete(s.games, id)
+			}
+		} else {
+			// Remove stale games after 24h
+			if now.Sub(lastUpdate) > 24*time.Hour {
+				delete(s.games, id)
+			}
+		}
 	}
 }
 
 // CreateMatch initializes a new game with the host player joined.
 func (s *MemoryService) CreateMatch(_ context.Context, hostID string) (string, error) {
+	if count := s.countActiveGamesByHost(hostID); count >= maxGamesPerUser {
+		return "", errors.New("max active games limit reached")
+	}
+
 	gameID := fmt.Sprintf("game-%v", uuid.NewString())
 	sg := &safeGame{
 		game:      model.NewGame(),
 		id:        gameID,
 		createdAt: time.Now(),
+		updatedAt: time.Now(),
 		host:      hostID,
 	}
 
@@ -101,6 +145,7 @@ func (s *MemoryService) JoinMatch(
 	}
 
 	game.guest = playerID
+	game.updatedAt = time.Now()
 
 	return game.game.GetView(playerID)
 }
@@ -123,6 +168,24 @@ func playerCountUnsafe(sg *safeGame) (count int) {
 	}
 	if sg.guest != "" {
 		count++
+	}
+	return count
+}
+
+func (s *MemoryService) countActiveGamesByHost(hostID string) int {
+	s.gamesMu.RLock()
+	defer s.gamesMu.RUnlock()
+
+	count := 0
+	for _, g := range s.games {
+		g.mu.Lock()
+		isHost := g.host == hostID
+		isGameOver := g.game.IsGameOver()
+		g.mu.Unlock()
+
+		if isHost && !isGameOver {
+			count++
+		}
 	}
 	return count
 }

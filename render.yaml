@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: battleship-server
+    runtime: docker
+    repo: https://github.com/callegarimattia/battleship
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    envVars:
+      # - key: PORT
+      #   value: 8080

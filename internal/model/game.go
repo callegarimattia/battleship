@@ -34,7 +34,7 @@ const (
 	StateWaiting GameState = iota
 	StateSetup
 	StatePlaying
-	StateFinished
+	StateGameOver
 )
 
 // Game acts as the refeeree between two players.
@@ -45,6 +45,11 @@ type Game struct {
 	turn    string
 	state   GameState
 	winner  string
+}
+
+// IsGameOver returns true if the game is in the finished state.
+func (g *Game) IsGameOver() bool {
+	return g.state == StateGameOver
 }
 
 // Player represents a participant in the Battleship game.
@@ -148,7 +153,7 @@ func (g *Game) Attack(attackerID string, c Coordinate) (ShotResult, error) {
 
 	case ShotResultSunk:
 		if d.board.AllShipsSunk() {
-			g.state = StateFinished
+			g.state = StateGameOver
 			g.winner = attackerID
 			return res, nil
 		}
@@ -264,7 +269,7 @@ func toDTOState(state GameState) dto.GameState {
 		return dto.StateSetup
 	case StatePlaying:
 		return dto.StatePlaying
-	case StateFinished:
+	case StateGameOver:
 		return dto.StateFinished
 	default:
 		return ""

@@ -84,3 +84,21 @@ func TestMemoryService_Attack_NotStarted(t *testing.T) {
 	_, err := s.Attack(ctx, matchID, "p1", 0, 0)
 	assert.Error(t, err) // Game not started
 }
+
+func TestMemoryService_MaxGamesLimit(t *testing.T) {
+	t.Parallel()
+	s := service.NewMemoryService()
+	ctx := context.Background()
+	hostID := "spammer"
+
+	// Create max allowed games (5)
+	for i := 0; i < 5; i++ {
+		_, err := s.CreateMatch(ctx, hostID)
+		require.NoError(t, err, "should create game %d", i+1)
+	}
+
+	// Try to create the 6th game
+	_, err := s.CreateMatch(ctx, hostID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "max active games limit reached")
+}
