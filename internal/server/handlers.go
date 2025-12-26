@@ -1,5 +1,5 @@
 // Package api contains the http handlers
-package api
+package server
 
 import (
 	"net/http"

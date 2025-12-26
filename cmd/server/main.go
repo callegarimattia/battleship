@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/callegarimattia/battleship/internal/api"
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/env"
 	"github.com/callegarimattia/battleship/internal/events"
+	"github.com/callegarimattia/battleship/internal/server"
 	"github.com/callegarimattia/battleship/internal/service"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -59,13 +59,14 @@ func (a *Application) Setup() {
 	a.E.Use(middleware.BodyLimit("1M"))
 	a.E.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(rate.Limit(cfg.RateLimit))))
 
-	h := api.NewEchoHandler(appCtrl)
+	h := server.NewEchoHandler(appCtrl)
 
 	a.E.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
 
 	a.E.Static("/docs", "docs")
+	a.E.Static("/", "public")
 
 	a.E.POST("/login", h.Login)
 
@@ -77,7 +78,7 @@ func (a *Application) Setup() {
 	protected.Use(echojwt.WithConfig(echojwt.Config{
 		SigningKey: []byte(cfg.JWTSecret),
 	}))
-	protected.Use(api.RequirePlayerID)
+	protected.Use(server.RequirePlayerID)
 
 	protected.POST("", h.HostMatch)
 	protected.POST("/:id/join", h.JoinMatch)
