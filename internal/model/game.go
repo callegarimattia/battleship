@@ -3,6 +3,8 @@ package model
 import (
 	"errors"
 	"maps"
+
+	"github.com/callegarimattia/battleship/internal/dto"
 )
 
 var (
@@ -20,6 +22,8 @@ var (
 	ErrNotInSetup = errors.New("game not in setup state")
 	// ErrNotReadyToStart is returned when trying to start the game before both players have placed all their ships.
 	ErrNotReadyToStart = errors.New("not all ships placed by both players")
+	// ErrGameFull is returned when trying to join a game that already has two players.
+	ErrGameFull = errors.New("game already has two players")
 )
 
 // GameState represents the current phase of the game.
@@ -27,7 +31,8 @@ type GameState int
 
 // Possible GameState values.
 const (
-	StateSetup GameState = iota
+	StateWaiting GameState = iota
+	StateSetup
 	StatePlaying
 	StateFinished
 )
@@ -49,15 +54,36 @@ type Player struct {
 	board *Board
 }
 
-// NewGame initializes a new game with two players identified by their IDs.
+// NewFullGame initializes a new game with two players identified by their IDs.
 // A fleet configuration can be provided; if nil, the standard fleet is used.
-func NewGame(p1ID, p2ID string, fleet map[int]int) *Game {
-	if fleet == nil {
-		fleet = StandardFleet()
-	}
+func NewFullGame(p1ID, p2ID string, fleet map[int]int) *Game {
 	return &Game{
-		player1: &Player{id: p1ID, board: NewBoard(), fleet: maps.Clone(fleet)},
-		player2: &Player{id: p2ID, board: NewBoard(), fleet: maps.Clone(fleet)},
+		player1: &Player{id: p1ID, board: NewBoard(), fleet: startingFleet(fleet)},
+		player2: &Player{id: p2ID, board: NewBoard(), fleet: startingFleet(fleet)},
+		state:   StateSetup,
+	}
+}
+
+// NewGame initializes a new empty game.
+func NewGame() *Game {
+	return &Game{}
+}
+
+// Join adds a player to the game with the specified fleet configuration.
+func (g *Game) Join(playerID string, fleet map[int]int) error {
+	switch {
+	case g.player1 == nil:
+		g.player1 = &Player{id: playerID, board: NewBoard(), fleet: startingFleet(fleet)}
+
+		return nil
+	case g.player2 == nil:
+		g.player2 = &Player{id: playerID, board: NewBoard(), fleet: startingFleet(fleet)}
+
+		g.state = StateSetup // Once both players have joined, move to setup phase
+
+		return nil
+	default:
+		return ErrGameFull
 	}
 }
 
@@ -150,7 +176,35 @@ func StandardFleet() map[int]int {
 	}
 }
 
-// --- Internal Helper Functions ---
+// GetView returns the DTO seen by a specific observer (playerID).
+func (g *Game) GetView(observerID string) (dto.GameView, error) {
+	var me, enemy *Player
+	switch observerID {
+	case g.player1.id:
+		me, enemy = g.player1, g.player2
+	case g.player2.id:
+		me, enemy = g.player2, g.player1
+	default:
+		return dto.GameView{}, ErrUnknownPlayer
+	}
+
+	return dto.GameView{
+		State:  toDTOState(g.state),
+		Turn:   g.turn,
+		Winner: g.winner,
+		Me:     me.GetView(false),   // Full view
+		Enemy:  enemy.GetView(true), // Fog of war
+	}, nil
+}
+
+// GetView returns the DTO representation of the player.
+func (p *Player) GetView(hideShips bool) dto.PlayerView {
+	return dto.PlayerView{
+		ID:    p.id,
+		Board: p.board.GetSnapshot(hideShips),
+		Fleet: maps.Clone(p.fleet),
+	}
+}
 
 func (g *Game) allShipsPlaced() bool {
 	return g.playerShipsPlaced(g.player1) && g.playerShipsPlaced(g.player2)
@@ -194,4 +248,25 @@ func (g *Game) playerShipsPlaced(p *Player) bool {
 		}
 	}
 	return true
+}
+
+func startingFleet(fleet map[int]int) map[int]int {
+	if fleet == nil {
+		return StandardFleet()
+	}
+	return maps.Clone(fleet)
+}
+
+// Adapter: Convert internal GameState to DTO GameState
+func toDTOState(state GameState) dto.GameState {
+	switch state {
+	case StateSetup:
+		return dto.StateSetup
+	case StatePlaying:
+		return dto.StatePlaying
+	case StateFinished:
+		return dto.StateFinished
+	default:
+		return ""
+	}
 }

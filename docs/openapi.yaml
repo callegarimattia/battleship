@@ -1,0 +1,297 @@
+openapi: 3.0.3
+info:
+  title: Battleship API
+  description: A RESTful API for a Multiplayer Multiplatform Battleship Game.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local Development Server
+
+tags:
+  - name: Auth
+    description: User identification and registration
+  - name: Lobby
+    description: Matchmaking and game creation
+  - name: Gameplay
+    description: In-game actions (Ship placement, Attacking)
+
+paths:
+  # ---------------------------------------------------------------------------
+  # Auth Endpoints
+  # ---------------------------------------------------------------------------
+  /login:
+    post:
+      tags:
+        - Auth
+      summary: Register or Login
+      description: Returns a User object with a unique ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "CommanderAlice"
+      responses:
+        '200':
+          description: User logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid JSON input
+
+  # ---------------------------------------------------------------------------
+  # Lobby Endpoints
+  # ---------------------------------------------------------------------------
+  /matches:
+    get:
+      tags:
+        - Lobby
+      summary: List matches
+      description: Returns the list of active games 
+      responses:
+        '200':
+          description: A list of matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchSummary'
+    
+    post:
+      tags:
+        - Lobby
+      summary: Host a new match
+      description: Creates a new game in 'waiting' state with the requester as Player 1.
+      parameters:
+        - $ref: '#/components/parameters/PlayerIDHeader'
+      responses:
+        '200':
+          description: Match created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  match_id:
+                    type: string
+                    example: "user-123-vs-waiting"
+        '401':
+          description: Missing X-Player-ID header
+
+  /matches/{id}/join:
+    post:
+      tags:
+        - Lobby
+      summary: Join an existing match
+      description: Joins the game as Player 2. Transitions game state to 'Setup'.
+      parameters:
+        - $ref: '#/components/parameters/MatchIDPath'
+        - $ref: '#/components/parameters/PlayerIDHeader'
+      responses:
+        '200':
+          description: Joined successfully. Returns the initial game view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameView'
+        '400':
+          description: Match full or does not exist
+
+  # ---------------------------------------------------------------------------
+  # Gameplay Endpoints
+  # ---------------------------------------------------------------------------
+  /matches/{id}:
+    get:
+      tags:
+        - Gameplay
+      summary: Get Game State
+      description: Returns the current board state. Automatically applies Fog of War.
+      parameters:
+        - $ref: '#/components/parameters/MatchIDPath'
+        - $ref: '#/components/parameters/PlayerIDHeader'
+      responses:
+        '200':
+          description: Current game state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameView'
+        '500':
+          description: Game not found or server error
+
+  /matches/{id}/place:
+    post:
+      tags:
+        - Gameplay
+      summary: Place a ship
+      description: Places a ship on the board during the Setup phase.
+      parameters:
+        - $ref: '#/components/parameters/MatchIDPath'
+        - $ref: '#/components/parameters/PlayerIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceShipRequest'
+      responses:
+        '200':
+          description: Ship placed successfully. Returns updated state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameView'
+        '400':
+          description: Invalid placement
+
+  /matches/{id}/attack:
+    post:
+      tags:
+        - Gameplay
+      summary: Fire a shot
+      description: Attacks a coordinate on the enemy board during the Playing phase.
+      parameters:
+        - $ref: '#/components/parameters/MatchIDPath'
+        - $ref: '#/components/parameters/PlayerIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                x:
+                  type: integer
+                  example: 0
+                y:
+                  type: integer
+                  example: 5
+      responses:
+        '200':
+          description: Shot fired. Returns updated state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameView'
+        '400':
+          description: Invalid move
+
+# ---------------------------------------------------------------------------
+# Reusable Components (DTOs)
+# ---------------------------------------------------------------------------
+components:
+  parameters:
+    MatchIDPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: The unique ID of the match
+    PlayerIDHeader:
+      name: X-Player-ID
+      in: header
+      required: true
+      schema:
+        type: string
+      description: The ID returned from the /login endpoint
+
+  schemas:
+    # Auth DTOs
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "user-17192412"
+        username:
+          type: string
+          example: "CommanderAlice"
+
+    # Lobby DTOs
+    MatchSummary:
+      type: object
+      properties:
+        match_id:
+          type: string
+        host_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        player_count:
+          type: integer
+          description: Number of players currently in the match
+          example: 1
+
+    # Gameplay DTOs (Requests)
+    PlaceShipRequest:
+      type: object
+      required: ["size", "x", "y", "vertical"]
+      properties:
+        size:
+          type: integer
+          description: Length of the ship (2-5)
+          example: 5
+        x:
+          type: integer
+          example: 0
+        y:
+          type: integer
+          example: 0
+        vertical:
+          type: boolean
+          example: true
+
+    # Gameplay DTOs (Responses)
+    GameView:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: ["setup", "playing", "finished"]
+        turn:
+          type: string
+        winner:
+          type: string
+        me:
+          $ref: '#/components/schemas/PlayerView'
+        enemy:
+          $ref: '#/components/schemas/PlayerView'
+
+    PlayerView:
+      type: object
+      properties:
+        id:
+          type: string
+        fleet:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Map of ShipSize -> Count remaining
+          example: { "5": 1, "4": 0 }
+        board:
+          $ref: '#/components/schemas/BoardView'
+
+    BoardView:
+      type: object
+      properties:
+        size:
+          type: integer
+          example: 10
+        grid:
+          type: array
+          description: 10x10 Grid. Rows are Y, Cols are X.
+          items:
+            type: array
+            items:
+              type: string
+              enum: ["EMPTY", "SHIP", "HIT", "MISS", "SUNK", "FOG"]
+              example: "FOG"

@@ -1,19 +1,18 @@
 package model_test
 
 import (
-	"errors"
 	"testing"
 
 	m "github.com/callegarimattia/battleship/internal/model"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // --- Helper for creating ships without error checks in tests ---
 func mustNewShip(t *testing.T, size int) *m.Ship {
 	t.Helper()
 	s, err := m.NewShip(size)
-	if err != nil {
-		t.Fatalf("failed to create ship of size %d: %v", size, err)
-	}
+	require.NoErrorf(t, err, "failed to create ship of size %d", size)
 	return s
 }
 
@@ -37,19 +36,11 @@ func TestNewShip(t *testing.T) {
 
 			got, err := m.NewShip(tt.size)
 			if tt.wantErr != nil {
-				if !errors.Is(err, tt.wantErr) {
-					t.Errorf("NewShip() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if got != nil {
-					t.Errorf("NewShip() expected nil ship on error, got %v", got)
-				}
+				assert.ErrorIs(t, err, tt.wantErr)
+				assert.Nil(t, got, "NewShip() expected nil ship on error")
 			} else {
-				if err != nil {
-					t.Errorf("NewShip() unexpected error: %v", err)
-				}
-				if got.Size() != tt.size {
-					t.Errorf("NewShip() size = %d, want %d", got.Size(), tt.size)
-				}
+				assert.NoError(t, err)
+				assert.Equal(t, tt.size, got.Size())
 			}
 		})
 	}
@@ -136,8 +127,10 @@ func TestPlaceShip(t *testing.T) {
 
 			err := b.PlaceShip(tt.coord, tt.ship, tt.orientation)
 
-			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("PlaceShip() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -151,9 +144,7 @@ func TestReceiveShot(t *testing.T) {
 	b := m.NewBoard()
 	ship := mustNewShip(t, 2)
 	err := b.PlaceShip(m.Coordinate{X: 0, Y: 0}, ship, m.Horizontal)
-	if err != nil {
-		t.Fatalf("Setup failed: %v", err)
-	}
+	require.NoError(t, err, "Setup failed")
 
 	tests := []struct {
 		name       string
@@ -199,9 +190,7 @@ func TestReceiveShot(t *testing.T) {
 
 	for _, tt := range tests {
 		got := b.ReceiveShot(tt.coord)
-		if got != tt.wantResult {
-			t.Errorf("ReceiveShot(%v) = %v, want %v", tt.coord, got, tt.wantResult)
-		}
+		assert.Equal(t, tt.wantResult, got, "ReceiveShot(%v) = %v, want %v", tt.coord, got, tt.wantResult)
 	}
 }
 
@@ -211,9 +200,7 @@ func TestAllShipsSunk(t *testing.T) {
 	b := m.NewBoard()
 
 	// Scenario 1: Empty board should count as "All Sunk"
-	if !b.AllShipsSunk() {
-		t.Error("New/Empty board should return true for AllShipsSunk")
-	}
+	assert.True(t, b.AllShipsSunk(), "New/Empty board should return true for AllShipsSunk")
 
 	// Scenario 2: Add ships
 	s1 := mustNewShip(t, 1) // At 0,0
@@ -222,46 +209,18 @@ func TestAllShipsSunk(t *testing.T) {
 	_ = b.PlaceShip(m.Coordinate{X: 0, Y: 0}, s1, m.Horizontal)
 	_ = b.PlaceShip(m.Coordinate{X: 5, Y: 5}, s2, m.Vertical)
 
-	if b.AllShipsSunk() {
-		t.Error("Board with healthy ships should NOT be sunk")
-	}
+	assert.False(t, b.AllShipsSunk(), "Board with healthy ships should NOT be sunk")
 
 	// Scenario 3: Sink first ship
 	b.ReceiveShot(m.Coordinate{X: 0, Y: 0})
-	if b.AllShipsSunk() {
-		t.Error("Board with one remaining ship should NOT be sunk")
-	}
+	assert.False(t, b.AllShipsSunk(), "Board with one remaining ship should NOT be sunk")
 
 	// Scenario 4: Damage second ship
 	b.ReceiveShot(m.Coordinate{X: 5, Y: 5})
-	if b.AllShipsSunk() {
-		t.Error("Board with partially damaged ship should NOT be sunk")
-	}
+	assert.False(t, b.AllShipsSunk(), "Board with partially damaged ship should NOT be sunk")
 
 	// Scenario 5: Sink last segment
 	b.ReceiveShot(m.Coordinate{X: 5, Y: 6})
 
-	if !b.AllShipsSunk() {
-		t.Error("All ships are destroyed, should return true")
-	}
-}
-
-func TestOrientationStringer(t *testing.T) {
-	t.Parallel()
-
-	if m.Horizontal.String() != "Horizontal" {
-		t.Errorf("Horizontal.String() = %s", m.Horizontal.String())
-	}
-
-	if m.Vertical.String() != "Vertical" {
-		t.Errorf("Vertical.String() = %s", m.Vertical.String())
-	}
-}
-
-func TestShotResultStringer(t *testing.T) {
-	t.Parallel()
-
-	if m.ShotResultMiss.String() != "ShotResultMiss" {
-		t.Errorf("ShotResultMiss.String() = %s", m.ShotResultMiss.String())
-	}
+	assert.True(t, b.AllShipsSunk(), "All ships are destroyed, should return true")
 }

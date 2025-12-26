@@ -1,12 +1,12 @@
 // Package model provides the core data structures and logic for a Battleship game.
-//
-//go:generate stringer -type=ShotResult,Orientation,GameState -output=board_string.go
 package model
 
 import (
 	"errors"
 	"iter"
 	"slices"
+
+	"github.com/callegarimattia/battleship/internal/dto"
 )
 
 var (
@@ -157,7 +157,37 @@ func (b *Board) Cells() iter.Seq2[Coordinate, *tile] {
 	}
 }
 
-// --- Internal Helper Functions --- //
+// GetSnapshot returns a snapshot view of the board.
+// If hideUnhitShips is true, unhit ships will be represented as unknown cells.
+func (b *Board) GetSnapshot(hideUnhitShips bool) dto.BoardView {
+	grid := make([][]dto.CellState, GridSize)
+	for i := range grid {
+		grid[i] = make([]dto.CellState, GridSize)
+	}
+
+	for coord, t := range b.Cells() {
+		var state dto.CellState
+
+		switch {
+		case t.isHit && t.ship != nil && b.isShipSunk(t.ship):
+			state = dto.CellSunk
+		case t.isHit && t.ship != nil:
+			state = dto.CellHit
+		case t.isHit:
+			state = dto.CellMiss
+		case hideUnhitShips:
+			state = dto.CellUnknown
+		case t.ship != nil:
+			state = dto.CellShip
+		default:
+			state = dto.CellEmpty
+		}
+
+		grid[coord.Y][coord.X] = state
+	}
+
+	return dto.BoardView{Grid: grid, Size: GridSize}
+}
 
 func (b *Board) isOutOfBounds(c Coordinate) bool {
 	return c.Y < 0 || c.Y >= len(b.tiles) || c.X < 0 || c.X >= len(b.tiles[0])
