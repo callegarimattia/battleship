@@ -11,7 +11,7 @@ import (
 
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/dto"
-	"github.com/callegarimattia/battleship/internal/mocks"
+	mocks "github.com/callegarimattia/battleship/internal/mocks/controller"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -21,11 +21,11 @@ import (
 
 func setupTest(
 	t *testing.T,
-) (*echo.Echo, *EchoHandler, *mocks.IdentityService, *mocks.LobbyService, *mocks.GameService) {
+) (*echo.Echo, *EchoHandler, *mocks.MockIdentityService, *mocks.MockLobbyService, *mocks.MockGameService) {
 	e := echo.New()
-	mockAuth := mocks.NewIdentityService(t)
-	mockLobby := mocks.NewLobbyService(t)
-	mockGame := mocks.NewGameService(t)
+	mockAuth := mocks.NewMockIdentityService(t)
+	mockLobby := mocks.NewMockLobbyService(t)
+	mockGame := mocks.NewMockGameService(t)
 	ctrl := controller.NewAppController(mockAuth, mockLobby, mockGame)
 	h := NewEchoHandler(ctrl)
 	return e, h, mockAuth, mockLobby, mockGame
@@ -33,7 +33,7 @@ func setupTest(
 
 func makeRequest(
 	method, path string,
-	body interface{},
+	body any,
 	headers map[string]string,
 ) (*http.Request, *httptest.ResponseRecorder) {
 	var bodyReader *bytes.Buffer
@@ -63,16 +63,16 @@ func TestLogin(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name           string
-		reqBody        interface{}
-		mockSetup      func(*mocks.IdentityService)
+		reqBody        any
+		mockSetup      func(*mocks.MockIdentityService)
 		expectedStatus int
 		expectedBody   string
 	}{
 		{
 			name:    "Success",
 			reqBody: map[string]string{"username": "Alice"},
-			mockSetup: func(m *mocks.IdentityService) {
-				m.On("LoginOrRegister", mock.Anything, "Alice", "web", "Alice").
+			mockSetup: func(m *mocks.MockIdentityService) {
+				m.EXPECT().LoginOrRegister(mock.Anything, "Alice", "web", "Alice").
 					Return(dto.AuthResponse{
 						Token: "t1",
 						User:  dto.User{ID: "user-123", Username: "Alice"},
@@ -85,15 +85,15 @@ func TestLogin(t *testing.T) {
 		{
 			name:           "Invalid JSON",
 			reqBody:        "{invalid-json", // passing string directly
-			mockSetup:      func(m *mocks.IdentityService) {},
+			mockSetup:      func(m *mocks.MockIdentityService) {},
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Invalid JSON",
 		},
 		{
 			name:    "Service Error",
 			reqBody: map[string]string{"username": "ErrorUser"},
-			mockSetup: func(m *mocks.IdentityService) {
-				m.On("LoginOrRegister", mock.Anything, "ErrorUser", "web", "ErrorUser").
+			mockSetup: func(m *mocks.MockIdentityService) {
+				m.EXPECT().LoginOrRegister(mock.Anything, "ErrorUser", "web", "ErrorUser").
 					Return(dto.AuthResponse{}, errors.New("db down")).
 					Once()
 			},
@@ -103,7 +103,6 @@ func TestLogin(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			e, h, mockAuth, _, _ := setupTest(t)
@@ -133,14 +132,14 @@ func TestListMatches(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name           string
-		mockSetup      func(*mocks.LobbyService)
+		mockSetup      func(*mocks.MockLobbyService)
 		expectedStatus int
 		expectedBody   string
 	}{
 		{
 			name: "Success",
-			mockSetup: func(m *mocks.LobbyService) {
-				m.On("ListMatches", mock.Anything).
+			mockSetup: func(m *mocks.MockLobbyService) {
+				m.EXPECT().ListMatches(mock.Anything).
 					Return([]dto.MatchSummary{
 						{ID: "m1", HostName: "H1", PlayerCount: 1, CreatedAt: time.Now()},
 					}, nil).
@@ -151,8 +150,8 @@ func TestListMatches(t *testing.T) {
 		},
 		{
 			name: "Service Error",
-			mockSetup: func(m *mocks.LobbyService) {
-				m.On("ListMatches", mock.Anything).
+			mockSetup: func(m *mocks.MockLobbyService) {
+				m.EXPECT().ListMatches(mock.Anything).
 					Return(nil, errors.New("db fail")).
 					Once()
 			},
@@ -162,7 +161,6 @@ func TestListMatches(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			e, h, _, mockLobby, _ := setupTest(t)
@@ -192,15 +190,15 @@ func TestHostMatch(t *testing.T) {
 	tests := []struct {
 		name           string
 		headers        map[string]string
-		mockSetup      func(*mocks.LobbyService)
+		mockSetup      func(*mocks.MockLobbyService)
 		expectedStatus int
 		expectedBody   string
 	}{
 		{
 			name:    "Success",
 			headers: map[string]string{"X-Player-ID": "user-123"},
-			mockSetup: func(m *mocks.LobbyService) {
-				m.On("CreateMatch", mock.Anything, "user-123").
+			mockSetup: func(m *mocks.MockLobbyService) {
+				m.EXPECT().CreateMatch(mock.Anything, "user-123").
 					Return("match-new-id", nil).
 					Once()
 			},
@@ -210,8 +208,8 @@ func TestHostMatch(t *testing.T) {
 		{
 			name:    "Service Error",
 			headers: map[string]string{"X-Player-ID": "user-123"},
-			mockSetup: func(m *mocks.LobbyService) {
-				m.On("CreateMatch", mock.Anything, "user-123").
+			mockSetup: func(m *mocks.MockLobbyService) {
+				m.EXPECT().CreateMatch(mock.Anything, "user-123").
 					Return("", errors.New("create fail")).
 					Once()
 			},
@@ -221,7 +219,6 @@ func TestHostMatch(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			e, h, _, mockLobby, _ := setupTest(t)
@@ -255,7 +252,7 @@ func TestJoinMatch(t *testing.T) {
 		name           string
 		headers        map[string]string
 		paramID        string
-		mockSetup      func(*mocks.LobbyService)
+		mockSetup      func(*mocks.MockLobbyService)
 		expectedStatus int
 		expectedBody   string
 	}{
@@ -263,8 +260,8 @@ func TestJoinMatch(t *testing.T) {
 			name:    "Success",
 			headers: map[string]string{"X-Player-ID": "p2"},
 			paramID: "m1",
-			mockSetup: func(m *mocks.LobbyService) {
-				m.On("JoinMatch", mock.Anything, "m1", "p2").
+			mockSetup: func(m *mocks.MockLobbyService) {
+				m.EXPECT().JoinMatch(mock.Anything, "m1", "p2").
 					Return(dto.GameView{State: "SETUP"}, nil).
 					Once()
 			},
@@ -275,8 +272,8 @@ func TestJoinMatch(t *testing.T) {
 			name:    "Service Error",
 			headers: map[string]string{"X-Player-ID": "p2"},
 			paramID: "m1",
-			mockSetup: func(m *mocks.LobbyService) {
-				m.On("JoinMatch", mock.Anything, "m1", "p2").
+			mockSetup: func(m *mocks.MockLobbyService) {
+				m.EXPECT().JoinMatch(mock.Anything, "m1", "p2").
 					Return(dto.GameView{}, errors.New("game full")).
 					Once()
 			},
@@ -286,7 +283,6 @@ func TestJoinMatch(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			e, h, _, mockLobby, _ := setupTest(t)
@@ -327,7 +323,7 @@ func TestGetState(t *testing.T) {
 		name           string
 		headers        map[string]string
 		paramID        string
-		mockSetup      func(*mocks.GameService)
+		mockSetup      func(*mocks.MockGameService)
 		expectedStatus int
 		expectedBody   string
 	}{
@@ -335,8 +331,8 @@ func TestGetState(t *testing.T) {
 			name:    "Success",
 			headers: map[string]string{"X-Player-ID": "p1"},
 			paramID: "m1",
-			mockSetup: func(m *mocks.GameService) {
-				m.On("GetState", mock.Anything, "m1", "p1").
+			mockSetup: func(m *mocks.MockGameService) {
+				m.EXPECT().GetState(mock.Anything, "m1", "p1").
 					Return(dto.GameView{State: "PLAYING"}, nil).
 					Once()
 			},
@@ -347,8 +343,8 @@ func TestGetState(t *testing.T) {
 			name:    "Service Error",
 			headers: map[string]string{"X-Player-ID": "p1"},
 			paramID: "m1",
-			mockSetup: func(m *mocks.GameService) {
-				m.On("GetState", mock.Anything, "m1", "p1").
+			mockSetup: func(m *mocks.MockGameService) {
+				m.EXPECT().GetState(mock.Anything, "m1", "p1").
 					Return(dto.GameView{}, errors.New("not found")).
 					Once()
 			},
@@ -358,7 +354,6 @@ func TestGetState(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			e, h, _, _, mockGame := setupTest(t)
@@ -393,17 +388,17 @@ func TestPlaceShip(t *testing.T) {
 	tests := []struct {
 		name           string
 		headers        map[string]string
-		reqBody        interface{}
-		mockSetup      func(*mocks.GameService)
+		reqBody        any
+		mockSetup      func(*mocks.MockGameService)
 		expectedStatus int
 		expectedBody   string
 	}{
 		{
 			name:    "Success",
 			headers: map[string]string{"X-Player-ID": "p1"},
-			reqBody: map[string]interface{}{"size": 3, "x": 0, "y": 0, "vertical": true},
-			mockSetup: func(m *mocks.GameService) {
-				m.On("PlaceShip", mock.Anything, "m1", "p1", 3, 0, 0, true).
+			reqBody: map[string]any{"size": 3, "x": 0, "y": 0, "vertical": true},
+			mockSetup: func(m *mocks.MockGameService) {
+				m.EXPECT().PlaceShip(mock.Anything, "m1", "p1", 3, 0, 0, true).
 					Return(dto.GameView{State: "SETUP"}, nil).
 					Once()
 			},
@@ -414,16 +409,16 @@ func TestPlaceShip(t *testing.T) {
 			name:           "Invalid JSON",
 			headers:        map[string]string{"X-Player-ID": "p1"},
 			reqBody:        "{bad-json",
-			mockSetup:      func(m *mocks.GameService) {},
+			mockSetup:      func(m *mocks.MockGameService) {},
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Invalid JSON",
 		},
 		{
 			name:    "Service Error",
 			headers: map[string]string{"X-Player-ID": "p1"},
-			reqBody: map[string]interface{}{"size": 3, "x": 0, "y": 0, "vertical": true},
-			mockSetup: func(m *mocks.GameService) {
-				m.On("PlaceShip", mock.Anything, "m1", "p1", 3, 0, 0, true).
+			reqBody: map[string]any{"size": 3, "x": 0, "y": 0, "vertical": true},
+			mockSetup: func(m *mocks.MockGameService) {
+				m.EXPECT().PlaceShip(mock.Anything, "m1", "p1", 3, 0, 0, true).
 					Return(dto.GameView{}, errors.New("overlap")).
 					Once()
 			},
@@ -433,7 +428,6 @@ func TestPlaceShip(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			e, h, _, _, mockGame := setupTest(t)
@@ -468,17 +462,17 @@ func TestAttack(t *testing.T) {
 	tests := []struct {
 		name           string
 		headers        map[string]string
-		reqBody        interface{}
-		mockSetup      func(*mocks.GameService)
+		reqBody        any
+		mockSetup      func(*mocks.MockGameService)
 		expectedStatus int
 		expectedBody   string
 	}{
 		{
 			name:    "Hit",
 			headers: map[string]string{"X-Player-ID": "p1"},
-			reqBody: map[string]interface{}{"x": 5, "y": 5},
-			mockSetup: func(m *mocks.GameService) {
-				m.On("Attack", mock.Anything, "m1", "p1", 5, 5).
+			reqBody: map[string]any{"x": 5, "y": 5},
+			mockSetup: func(m *mocks.MockGameService) {
+				m.EXPECT().Attack(mock.Anything, "m1", "p1", 5, 5).
 					Return(dto.GameView{State: "playing", Turn: "p2"}, nil).
 					Once()
 			},
@@ -489,16 +483,16 @@ func TestAttack(t *testing.T) {
 			name:           "Invalid JSON",
 			headers:        map[string]string{"X-Player-ID": "p1"},
 			reqBody:        "{bad",
-			mockSetup:      func(m *mocks.GameService) {},
+			mockSetup:      func(m *mocks.MockGameService) {},
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Invalid JSON",
 		},
 		{
 			name:    "Service Error",
 			headers: map[string]string{"X-Player-ID": "p1"},
-			reqBody: map[string]interface{}{"x": 5, "y": 5},
-			mockSetup: func(m *mocks.GameService) {
-				m.On("Attack", mock.Anything, "m1", "p1", 5, 5).
+			reqBody: map[string]any{"x": 5, "y": 5},
+			mockSetup: func(m *mocks.MockGameService) {
+				m.EXPECT().Attack(mock.Anything, "m1", "p1", 5, 5).
 					Return(dto.GameView{}, errors.New("not your turn")).
 					Once()
 			},
@@ -508,7 +502,6 @@ func TestAttack(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			e, h, _, _, mockGame := setupTest(t)

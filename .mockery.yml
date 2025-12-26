@@ -1,18 +1,8 @@
 all: true
-dir: internal/mocks
-filename: mocks_test.go
-force-file-write: true
-formatter: goimports
-generate: true
-include-auto-generated: false
-log-level: info
-structname: '{{.Mock}}{{.InterfaceName}}'
-pkgname: '{{.SrcPackageName}}'
-recursive: false
-require-template-schema-exists: true
+dir: 'internal/mocks'
 template: testify
-template-schema: '{{.Template}}.schema.json'
+filename: '{{.SrcPackageName}}/{{.InterfaceName}}.go'
+pkgname: 'mock_{{.SrcPackageName}}'
 packages:
-  internal/controller:
-    config:
-      all: true
+  github.com/callegarimattia/battleship/internal/events:
+  github.com/callegarimattia/battleship/internal/controller:

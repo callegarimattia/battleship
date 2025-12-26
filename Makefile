@@ -23,6 +23,7 @@ fmt:
 	golangci-lint fmt
 
 generate:
+	rm -rf internal/mocks
 	mockery
 
 run-bot:

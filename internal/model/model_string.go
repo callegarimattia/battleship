@@ -25,7 +25,6 @@ func (i ShotResult) String() string {
 	}
 	return _ShotResult_name[_ShotResult_index[idx]:_ShotResult_index[idx+1]]
 }
-
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -45,7 +44,6 @@ func (i Orientation) String() string {
 	}
 	return _Orientation_name[_Orientation_index[idx]:_Orientation_index[idx+1]]
 }
-
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -56,7 +54,7 @@ func _() {
 	_ = x[StateGameOver-3]
 }
 
-const _GameState_name = "StateWaitingStateSetupStatePlayingStateFinished"
+const _GameState_name = "StateWaitingStateSetupStatePlayingStateGameOver"
 
 var _GameState_index = [...]uint8{0, 12, 22, 34, 47}
 

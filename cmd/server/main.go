@@ -9,6 +9,7 @@ import (
 	"github.com/callegarimattia/battleship/internal/api"
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/env"
+	"github.com/callegarimattia/battleship/internal/events"
 	"github.com/callegarimattia/battleship/internal/service"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -35,7 +36,16 @@ func (a *Application) Setup() {
 		log.Fatalf("Failed to load server config: %v", err)
 	}
 
-	memEngine := service.NewMemoryService()
+	// Initialize event bus
+	eventBus := events.NewMemoryEventBus()
+	// Note: defer eventBus.Close() is typically used when the bus has resources to clean up
+	// and the function's scope is the lifetime of the bus. For a server, the bus might
+	// need to live for the entire application lifecycle, so deferring here might close it
+	// prematurely if Setup is called and then the server runs.
+	// For now, keeping it as per instruction, but it might need adjustment based on bus implementation.
+
+	// Initialize services, passing the event bus
+	memEngine := service.NewMemoryService(eventBus) // Modified to pass eventBus
 	authService := service.NewIdentityService(cfg.JWTSecret)
 	appCtrl := controller.NewAppController(authService, memEngine, memEngine)
 

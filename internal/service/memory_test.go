@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/callegarimattia/battleship/internal/dto"
+	"github.com/callegarimattia/battleship/internal/events"
 	"github.com/callegarimattia/battleship/internal/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ import (
 
 func TestMemoryService_LobbyFlow(t *testing.T) {
 	t.Parallel()
-	s := service.NewMemoryService()
+	s := service.NewMemoryService(events.NewMemoryEventBus())
 	ctx := context.Background()
 
 	matchID, err := s.CreateMatch(ctx, "host-1")
@@ -47,7 +48,7 @@ func TestMemoryService_LobbyFlow(t *testing.T) {
 
 func TestMemoryService_JoinErrors(t *testing.T) {
 	t.Parallel()
-	s := service.NewMemoryService()
+	s := service.NewMemoryService(events.NewMemoryEventBus())
 	ctx := context.Background()
 
 	_, err := s.JoinMatch(ctx, "non-existent", "p1")
@@ -57,7 +58,7 @@ func TestMemoryService_JoinErrors(t *testing.T) {
 
 func TestMemoryService_GameplayFlow(t *testing.T) {
 	t.Parallel()
-	s := service.NewMemoryService()
+	s := service.NewMemoryService(events.NewMemoryEventBus())
 	ctx := context.Background()
 
 	matchID, _ := s.CreateMatch(ctx, "p1")
@@ -77,7 +78,7 @@ func TestMemoryService_GameplayFlow(t *testing.T) {
 
 func TestMemoryService_Attack_NotStarted(t *testing.T) {
 	t.Parallel()
-	s := service.NewMemoryService()
+	s := service.NewMemoryService(events.NewMemoryEventBus())
 	ctx := context.Background()
 
 	matchID, _ := s.CreateMatch(ctx, "p1")
@@ -87,7 +88,7 @@ func TestMemoryService_Attack_NotStarted(t *testing.T) {
 
 func TestMemoryService_SingleActiveGameLimit(t *testing.T) {
 	t.Parallel()
-	s := service.NewMemoryService()
+	s := service.NewMemoryService(events.NewMemoryEventBus())
 	ctx := context.Background()
 
 	// Create first game

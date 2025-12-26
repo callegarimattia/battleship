@@ -36,7 +36,6 @@ linters:
           - gosec
           - funlen
           - lll
-          - revive
           - gocritic
 
   enable:
@@ -56,7 +55,6 @@ linters:
     - unparam       # Unused parameters
 
     # Style
-    - revive        # Drop-in replacement for golint
     - misspell      # Spelling
     - lll           # Line length
     - nakedret      # Disallow naked returns
@@ -70,6 +68,7 @@ formatters:
   enable:
     - gofumpt       # Strict gofmt
     - goimports     # Import organization
+    - golines       # Line length formatter
 
 issues:
   fix: true

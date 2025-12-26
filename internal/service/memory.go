@@ -9,6 +9,7 @@ import (
 
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/dto"
+	"github.com/callegarimattia/battleship/internal/events"
 	"github.com/callegarimattia/battleship/internal/model"
 	"github.com/google/uuid"
 )
@@ -20,8 +21,9 @@ var (
 
 // MemoryService is an in-memory implementation of the lobby and game service.
 type MemoryService struct {
-	games   map[string]*safeGame
-	gamesMu sync.RWMutex
+	games    map[string]*safeGame
+	gamesMu  sync.RWMutex
+	eventBus events.EventBus
 }
 
 type safeGame struct {
@@ -35,9 +37,10 @@ type safeGame struct {
 }
 
 // NewMemoryService creates a new in-memory lobby and game service.
-func NewMemoryService() *MemoryService {
+func NewMemoryService(eventBus events.EventBus) *MemoryService {
 	s := &MemoryService{
-		games: make(map[string]*safeGame),
+		games:    make(map[string]*safeGame),
+		eventBus: eventBus,
 	}
 	go s.cleanupLoop()
 	return s
@@ -152,7 +155,10 @@ func (s *MemoryService) JoinMatch(
 ) (dto.GameView, error) {
 	// Check if user is already in an active game
 	if inGame, existingMatchID := s.isUserInActiveGame(playerID); inGame {
-		return dto.GameView{}, fmt.Errorf("player is already in an active game (Match ID: %s)", existingMatchID)
+		return dto.GameView{}, fmt.Errorf(
+			"player is already in an active game (Match ID: %s)",
+			existingMatchID,
+		)
 	}
 
 	s.gamesMu.RLock()
@@ -163,15 +169,33 @@ func (s *MemoryService) JoinMatch(
 		return dto.GameView{}, err
 	}
 
-	err = game.game.Join(playerID, nil)
+	game.mu.Lock()
+	err = game.game.Join(playerID, model.StandardFleet())
+	game.guest = playerID
+	game.updatedAt = time.Now()
+	game.mu.Unlock()
+
 	if err != nil {
 		return dto.GameView{}, err
 	}
 
-	game.guest = playerID
-	game.updatedAt = time.Now()
+	view, err := game.game.GetView(playerID)
+	if err != nil {
+		return dto.GameView{}, err
+	}
 
-	return game.game.GetView(playerID)
+	// Emit event: player joined
+	if s.eventBus != nil {
+		s.eventBus.Publish(&events.GameEvent{
+			Type:      events.EventPlayerJoined,
+			MatchID:   matchID,
+			PlayerID:  playerID,
+			TargetID:  game.host, // Notify the host
+			Timestamp: time.Now(),
+		})
+	}
+
+	return view, nil
 }
 
 func (s *MemoryService) getSafeGame(matchID string) (*safeGame, error) {

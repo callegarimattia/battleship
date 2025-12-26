@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/callegarimattia/battleship/internal/events"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +14,7 @@ import (
 func TestMemoryService_Cleanup(t *testing.T) {
 	t.Parallel()
 
-	s := NewMemoryService()
+	s := NewMemoryService(events.NewMemoryEventBus())
 	ctx := context.Background()
 
 	activeID, err := s.CreateMatch(ctx, "host")

@@ -71,11 +71,9 @@ func (b *DiscordBot) handleHost(
 		return
 	}
 
-	// Track active match for this Discord user
+	// Register player, match, and channel
 	discordUserID := i.Member.User.ID
-	b.mu.Lock()
-	b.activeMatches[discordUserID] = matchID
-	b.mu.Unlock()
+	b.registerMatch(playerID, discordUserID, matchID, i.ChannelID)
 
 	embed := &discordgo.MessageEmbed{
 		Title: "🎮 Match Created!",
@@ -107,11 +105,10 @@ func (b *DiscordBot) handleJoin(
 		return
 	}
 
-	// Track active match for this Discord user
+	// Register player and match (channel already tracked by host)
 	discordUserID := i.Member.User.ID
-	b.mu.Lock()
-	b.activeMatches[discordUserID] = matchID
-	b.mu.Unlock()
+	b.trackPlayer(playerID, discordUserID)
+	b.trackMatch(discordUserID, matchID)
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "✅ Joined Match!",
@@ -177,12 +174,13 @@ func (b *DiscordBot) handlePlace(
 ) {
 	// Get active match
 	discordUserID := i.Member.User.ID
-	b.mu.RLock()
-	matchID, ok := b.activeMatches[discordUserID]
-	b.mu.RUnlock()
-
+	matchID, ok := b.getActiveMatch(discordUserID)
 	if !ok {
-		respondError(s, i, "You are not in an active match. Use `/battleship host` or `/battleship join` first.")
+		respondError(
+			s,
+			i,
+			"You are not in an active match. Use `/battleship host` or `/battleship join` first.",
+		)
 		return
 	}
 
@@ -217,10 +215,7 @@ func (b *DiscordBot) handleAttack(
 ) {
 	// Get active match
 	discordUserID := i.Member.User.ID
-	b.mu.RLock()
-	matchID, ok := b.activeMatches[discordUserID]
-	b.mu.RUnlock()
-
+	matchID, ok := b.getActiveMatch(discordUserID)
 	if !ok {
 		respondError(
 			s,
@@ -257,10 +252,7 @@ func (b *DiscordBot) handleStatus(
 ) {
 	// Get active match
 	discordUserID := i.Member.User.ID
-	b.mu.RLock()
-	matchID, ok := b.activeMatches[discordUserID]
-	b.mu.RUnlock()
-
+	matchID, ok := b.getActiveMatch(discordUserID)
 	if !ok {
 		respondError(
 			s,

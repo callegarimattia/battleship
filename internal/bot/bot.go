@@ -12,35 +12,46 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/callegarimattia/battleship/internal/controller"
+	"github.com/callegarimattia/battleship/internal/events"
 )
 
 // DiscordBot represents the Discord bot instance.
 type DiscordBot struct {
-	session *discordgo.Session
-	ctrl    *controller.AppController
-	appID   string
-
-	// Track active match per Discord user
-	mu            sync.RWMutex
-	activeMatches map[string]string // Discord user ID -> match ID
+	session         *discordgo.Session
+	appID           string
+	ctrl            *controller.AppController
+	eventBus        events.EventBus
+	activeMatches   map[string]string // userID -> matchID
+	matchMu         sync.RWMutex
+	playerToDiscord map[string]string // playerID -> discordUserID
+	discordMu       sync.RWMutex
+	matchToChannel  map[string]string // matchID -> channelID
+	channelMu       sync.RWMutex
 }
 
 // NewDiscordBot creates a new Discord bot instance.
-func NewDiscordBot(token, appID string, ctrl *controller.AppController) (*DiscordBot, error) {
-	session, err := discordgo.New("Bot " + token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Discord session: %w", err)
-	}
-
+func NewDiscordBot(
+	token, appID string,
+	ctrl *controller.AppController,
+	eventBus events.EventBus,
+) (*DiscordBot, error) {
 	if appID == "" {
 		return nil, fmt.Errorf("app ID is required")
 	}
 
+	session, err := discordgo.New("Bot " + token)
+	if err != nil {
+		return nil, fmt.Errorf("error creating Discord session: %w", err)
+	}
+
 	bot := &DiscordBot{
-		session:       session,
-		ctrl:          ctrl,
-		appID:         appID,
-		activeMatches: make(map[string]string),
+		session:         session,
+		appID:           appID,
+		ctrl:            ctrl,
+		eventBus:        eventBus,
+		activeMatches:   make(map[string]string),
+		playerToDiscord: make(map[string]string),
+		matchToChannel:  make(map[string]string),
 	}
 
 	// Register interaction handler
@@ -57,6 +68,10 @@ func (b *DiscordBot) Start(ctx context.Context) error {
 	}
 
 	log.Println("Discord bot connected successfully")
+
+	// Subscribe to game events
+	b.subscribeToEvents()
+	log.Println("Subscribed to game events")
 
 	// Register slash commands
 	if err := b.registerCommands(); err != nil {

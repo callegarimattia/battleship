@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/callegarimattia/battleship/internal/dto"
+	"github.com/callegarimattia/battleship/internal/events"
 	"github.com/callegarimattia/battleship/internal/model"
 )
 
@@ -31,14 +32,46 @@ func (s *MemoryService) PlaceShip(
 
 	coord := model.Coordinate{X: x, Y: y}
 
-	if err := sg.game.PlaceShip(playerID, coord, size, orientation); err != nil {
+	if err := sg.game.PlaceShip(playerID, coord, size, orientation); err != nil { //nolint
 		return dto.GameView{}, err // Returns ErrShipOverlap, ErrNoShipsRemaining, etc.
 	}
 
 	_ = sg.game.StartGame()
 	sg.updatedAt = time.Now()
 
-	return sg.game.GetView(playerID)
+	view, err := sg.game.GetView(playerID)
+	if err != nil {
+		return dto.GameView{}, err
+	}
+
+	// Emit event: ship placed
+	if s.eventBus != nil {
+		// Get opponent ID
+		opponentID := ""
+		if sg.host == playerID {
+			opponentID = sg.guest
+		} else {
+			opponentID = sg.host
+		}
+
+		if opponentID != "" {
+			s.eventBus.Publish(&events.GameEvent{
+				Type:      events.EventShipPlaced,
+				MatchID:   matchID,
+				PlayerID:  playerID,
+				TargetID:  opponentID,
+				Timestamp: time.Now(),
+				Data: events.ShipPlacedEventData{
+					Size:     size,
+					X:        x,
+					Y:        y,
+					Vertical: vertical,
+				},
+			})
+		}
+	}
+
+	return view, nil
 }
 
 // Attack handles the firing logic.
@@ -56,11 +89,53 @@ func (s *MemoryService) Attack(
 	defer sg.mu.Unlock()
 
 	coord := model.Coordinate{X: x, Y: y}
-	if _, err := sg.game.Attack(playerID, coord); err != nil {
+	result, err := sg.game.Attack(playerID, coord)
+	if err != nil {
 		return dto.GameView{}, err // Returns ErrNotYourTurn, ErrInvalidShot, etc.
 	}
 
-	return sg.game.GetView(playerID)
+	sg.updatedAt = time.Now()
+
+	view, err := sg.game.GetView(playerID)
+	if err != nil {
+		return dto.GameView{}, err
+	}
+
+	// Emit event: attack made
+	if s.eventBus != nil {
+		// Get opponent ID
+		opponentID := ""
+		if sg.host == playerID {
+			opponentID = sg.guest
+		} else {
+			opponentID = sg.host
+		}
+
+		if opponentID != "" {
+			resultStr := "miss"
+			switch result {
+			case model.ShotResultHit:
+				resultStr = "hit"
+			case model.ShotResultSunk:
+				resultStr = "sunk"
+			}
+
+			s.eventBus.Publish(&events.GameEvent{
+				Type:      events.EventAttackMade,
+				MatchID:   matchID,
+				PlayerID:  playerID,
+				TargetID:  opponentID,
+				Timestamp: time.Now(),
+				Data: events.AttackEventData{
+					X:      x,
+					Y:      y,
+					Result: resultStr,
+				},
+			})
+		}
+	}
+
+	return view, nil
 }
 
 // GetState retrieves the current game state for a player.

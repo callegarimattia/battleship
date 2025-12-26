@@ -7,17 +7,17 @@ import (
 
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/dto"
-	"github.com/callegarimattia/battleship/internal/mocks"
+	mock_controller "github.com/callegarimattia/battleship/internal/mocks/controller"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func setupControllerTest(
 	t *testing.T,
-) (*controller.AppController, *mocks.IdentityService, *mocks.LobbyService, *mocks.GameService) {
-	mockAuth := mocks.NewIdentityService(t)
-	mockLobby := mocks.NewLobbyService(t)
-	mockGame := mocks.NewGameService(t)
+) (*controller.AppController, *mock_controller.MockIdentityService, *mock_controller.MockLobbyService, *mock_controller.MockGameService) {
+	mockAuth := mock_controller.NewMockIdentityService(t)
+	mockLobby := mock_controller.NewMockLobbyService(t)
+	mockGame := mock_controller.NewMockGameService(t)
 	ctrl := controller.NewAppController(mockAuth, mockLobby, mockGame)
 	return ctrl, mockAuth, mockLobby, mockGame
 }
@@ -29,7 +29,7 @@ func TestLogin(t *testing.T) {
 		username     string
 		source       string
 		platformID   string
-		mockSetup    func(*mocks.IdentityService)
+		mockSetup    func(*mock_controller.MockIdentityService)
 		expectedResp dto.AuthResponse
 		expectedErr  error
 	}{
@@ -38,8 +38,8 @@ func TestLogin(t *testing.T) {
 			username:   "Alice",
 			source:     "web",
 			platformID: "Alice",
-			mockSetup: func(m *mocks.IdentityService) {
-				m.On("LoginOrRegister", mock.Anything, "Alice", "web", "Alice").
+			mockSetup: func(m *mock_controller.MockIdentityService) {
+				m.EXPECT().LoginOrRegister(mock.Anything, "Alice", "web", "Alice").
 					Return(dto.AuthResponse{
 						Token: "token",
 						User:  dto.User{ID: "u1", Username: "Alice"},
@@ -57,8 +57,8 @@ func TestLogin(t *testing.T) {
 			username:   "Bob",
 			source:     "discord",
 			platformID: "12345",
-			mockSetup: func(m *mocks.IdentityService) {
-				m.On("LoginOrRegister", mock.Anything, "Bob", "discord", "12345").
+			mockSetup: func(m *mock_controller.MockIdentityService) {
+				m.EXPECT().LoginOrRegister(mock.Anything, "Bob", "discord", "12345").
 					Return(dto.AuthResponse{}, errors.New("auth error")).
 					Once()
 			},
@@ -68,7 +68,6 @@ func TestLogin(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctrl, mockAuth, _, _ := setupControllerTest(t)
@@ -92,7 +91,7 @@ func TestLobbyActions(t *testing.T) {
 	t.Run("HostGameAction", func(t *testing.T) {
 		t.Parallel()
 		ctrl, _, mockLobby, _ := setupControllerTest(t)
-		mockLobby.On("CreateMatch", mock.Anything, "p1").Return("match-1", nil).Once()
+		mockLobby.EXPECT().CreateMatch(mock.Anything, "p1").Return("match-1", nil).Once()
 
 		id, err := ctrl.HostGameAction(context.Background(), "p1")
 		assert.NoError(t, err)
@@ -102,7 +101,7 @@ func TestLobbyActions(t *testing.T) {
 	t.Run("HostGameAction Error", func(t *testing.T) {
 		t.Parallel()
 		ctrl, _, mockLobby, _ := setupControllerTest(t)
-		mockLobby.On("CreateMatch", mock.Anything, "p1").Return("", errors.New("fail")).Once()
+		mockLobby.EXPECT().CreateMatch(mock.Anything, "p1").Return("", errors.New("fail")).Once()
 
 		_, err := ctrl.HostGameAction(context.Background(), "p1")
 		assert.Error(t, err)
@@ -112,7 +111,7 @@ func TestLobbyActions(t *testing.T) {
 		t.Parallel()
 		ctrl, _, mockLobby, _ := setupControllerTest(t)
 		expected := []dto.MatchSummary{{ID: "m1"}}
-		mockLobby.On("ListMatches", mock.Anything).Return(expected, nil).Once()
+		mockLobby.EXPECT().ListMatches(mock.Anything).Return(expected, nil).Once()
 
 		list, err := ctrl.ListGamesAction(context.Background())
 		assert.NoError(t, err)
@@ -123,7 +122,7 @@ func TestLobbyActions(t *testing.T) {
 		t.Parallel()
 		ctrl, _, mockLobby, _ := setupControllerTest(t)
 		expected := dto.GameView{State: "SETUP"}
-		mockLobby.On("JoinMatch", mock.Anything, "m1", "p2").Return(expected, nil).Once()
+		mockLobby.EXPECT().JoinMatch(mock.Anything, "m1", "p2").Return(expected, nil).Once()
 
 		view, err := ctrl.JoinGameAction(context.Background(), "m1", "p2")
 		assert.NoError(t, err)
@@ -138,7 +137,7 @@ func TestGameActions(t *testing.T) {
 		t.Parallel()
 		ctrl, _, _, mockGame := setupControllerTest(t)
 		expected := dto.GameView{State: "SETUP"}
-		mockGame.On("PlaceShip", mock.Anything, "m1", "p1", 3, 0, 0, true).
+		mockGame.EXPECT().PlaceShip(mock.Anything, "m1", "p1", 3, 0, 0, true).
 			Return(expected, nil).Once()
 
 		view, err := ctrl.PlaceShipAction(context.Background(), "m1", "p1", 3, 0, 0, true)
@@ -150,7 +149,7 @@ func TestGameActions(t *testing.T) {
 		t.Parallel()
 		ctrl, _, _, mockGame := setupControllerTest(t)
 		expected := dto.GameView{State: "PLAYING"}
-		mockGame.On("Attack", mock.Anything, "m1", "p1", 5, 5).
+		mockGame.EXPECT().Attack(mock.Anything, "m1", "p1", 5, 5).
 			Return(expected, nil).Once()
 
 		view, err := ctrl.AttackAction(context.Background(), "m1", "p1", 5, 5)
@@ -162,7 +161,7 @@ func TestGameActions(t *testing.T) {
 		t.Parallel()
 		ctrl, _, _, mockGame := setupControllerTest(t)
 		expected := dto.GameView{State: "FINISHED"}
-		mockGame.On("GetState", mock.Anything, "m1", "p1").
+		mockGame.EXPECT().GetState(mock.Anything, "m1", "p1").
 			Return(expected, nil).Once()
 
 		view, err := ctrl.GetGameStateAction(context.Background(), "m1", "p1")
