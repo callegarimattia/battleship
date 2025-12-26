@@ -73,7 +73,10 @@ func TestLogin(t *testing.T) {
 			reqBody: map[string]string{"username": "Alice"},
 			mockSetup: func(m *mocks.IdentityService) {
 				m.On("LoginOrRegister", mock.Anything, "Alice", "web", "Alice").
-					Return(dto.User{ID: "user-123", Username: "Alice"}, nil).
+					Return(dto.AuthResponse{
+						Token: "t1",
+						User:  dto.User{ID: "user-123", Username: "Alice"},
+					}, nil).
 					Once()
 			},
 			expectedStatus: http.StatusOK,
@@ -91,7 +94,7 @@ func TestLogin(t *testing.T) {
 			reqBody: map[string]string{"username": "ErrorUser"},
 			mockSetup: func(m *mocks.IdentityService) {
 				m.On("LoginOrRegister", mock.Anything, "ErrorUser", "web", "ErrorUser").
-					Return(dto.User{}, errors.New("db down")).
+					Return(dto.AuthResponse{}, errors.New("db down")).
 					Once()
 			},
 			expectedStatus: http.StatusInternalServerError,
@@ -205,13 +208,6 @@ func TestHostMatch(t *testing.T) {
 			expectedBody:   "match-new-id",
 		},
 		{
-			name:           "Missing Header",
-			headers:        nil,
-			mockSetup:      func(m *mocks.LobbyService) {},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Missing X-Player-ID",
-		},
-		{
 			name:    "Service Error",
 			headers: map[string]string{"X-Player-ID": "user-123"},
 			mockSetup: func(m *mocks.LobbyService) {
@@ -233,6 +229,9 @@ func TestHostMatch(t *testing.T) {
 
 			req, rec := makeRequest(http.MethodPost, "/matches", nil, tt.headers)
 			c := e.NewContext(req, rec)
+			if id := tt.headers["X-Player-ID"]; id != "" {
+				c.Set("player_id", id)
+			}
 
 			err := h.HostMatch(c)
 			if err != nil {
@@ -300,6 +299,9 @@ func TestJoinMatch(t *testing.T) {
 				tt.headers,
 			)
 			c := e.NewContext(req, rec)
+			if id := tt.headers["X-Player-ID"]; id != "" {
+				c.Set("player_id", id)
+			}
 			c.SetParamNames("id")
 			c.SetParamValues(tt.paramID)
 
@@ -364,6 +366,9 @@ func TestGetState(t *testing.T) {
 
 			req, rec := makeRequest(http.MethodGet, "/matches/"+tt.paramID, nil, tt.headers)
 			c := e.NewContext(req, rec)
+			if id := tt.headers["X-Player-ID"]; id != "" {
+				c.Set("player_id", id)
+			}
 			c.SetParamNames("id")
 			c.SetParamValues(tt.paramID)
 
@@ -436,6 +441,9 @@ func TestPlaceShip(t *testing.T) {
 
 			req, rec := makeRequest(http.MethodPost, "/matches/m1/place", tt.reqBody, tt.headers)
 			c := e.NewContext(req, rec)
+			if id := tt.headers["X-Player-ID"]; id != "" {
+				c.Set("player_id", id)
+			}
 			c.SetParamNames("id")
 			c.SetParamValues("m1")
 
@@ -508,6 +516,9 @@ func TestAttack(t *testing.T) {
 
 			req, rec := makeRequest(http.MethodPost, "/matches/m1/attack", tt.reqBody, tt.headers)
 			c := e.NewContext(req, rec)
+			if id := tt.headers["X-Player-ID"]; id != "" {
+				c.Set("player_id", id)
+			}
 			c.SetParamNames("id")
 			c.SetParamValues("m1")
 

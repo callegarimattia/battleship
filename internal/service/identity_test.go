@@ -15,24 +15,24 @@ func TestMemoryIdentityService_LoginOrRegister(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Register new user
-	user1, err := auth.LoginOrRegister(ctx, "Alice", "web", "Alice")
+	resp1, err := auth.LoginOrRegister(ctx, "Alice", "web", "Alice")
 	require.NoError(t, err)
-	assert.NotEmpty(t, user1.ID)
-	assert.Equal(t, "Alice", user1.Username)
+	assert.NotEmpty(t, resp1.User.ID)
+	assert.Equal(t, "Alice", resp1.User.Username)
 
 	// 2. Login existing user (same source/extID)
-	user2, err := auth.LoginOrRegister(ctx, "AliceChanged", "web", "Alice")
+	resp2, err := auth.LoginOrRegister(ctx, "AliceChanged", "web", "Alice")
 	require.NoError(t, err)
-	assert.Equal(t, user1.ID, user2.ID, "Should return same user ID")
+	assert.Equal(t, resp1.User.ID, resp2.User.ID, "Should return same user ID")
 	assert.Equal(
 		t,
 		"Alice",
-		user2.Username,
+		resp2.User.Username,
 		"Should return original username (no update logic implemented)",
 	)
 
 	// 3. Register different user
-	user3, err := auth.LoginOrRegister(ctx, "Bob", "discord", "12345")
+	resp3, err := auth.LoginOrRegister(ctx, "Bob", "discord", "12345")
 	require.NoError(t, err)
-	assert.NotEqual(t, user1.ID, user3.ID)
+	assert.NotEqual(t, resp1.User.ID, resp3.User.ID)
 }

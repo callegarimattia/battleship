@@ -55,6 +55,12 @@ type User struct {
 	Username string `json:"username"`
 }
 
+// AuthResponse serves the JWT token along with user info.
+type AuthResponse struct {
+	Token string `json:"token"`
+	User  User   `json:"user"`
+}
+
 // MatchSummary is used for the "Lobby List" screen.
 type MatchSummary struct {
 	ID          string    `json:"match_id"`

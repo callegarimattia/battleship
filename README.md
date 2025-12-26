@@ -14,6 +14,9 @@ The architecture strictly separates the **Core Domain** (Game Logic) from the **
 
 ### Security
 
+- **Authentication**: JWT (JSON Web Token) based.
+  1. `POST /login` with username to receive a token.
+  2. Send `Authorization: Bearer <token>` header for all protected endpoints.
 - **Timeouts**: Strict read/write/idle timeouts to prevent Slowloris attacks.
 - **Rate Limiting**: 20 requests/second per IP.
 - **Security Headers**: HSTS, X-Frame-Options, X-XSS-Protection enabled.

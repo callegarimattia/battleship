@@ -41,7 +41,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/AuthResponse'
         '400':
           description: Invalid JSON input
 
@@ -53,7 +53,7 @@ paths:
       tags:
         - Lobby
       summary: List matches
-      description: Returns the list of active games 
+      description: Returns the list of active games
       responses:
         '200':
           description: A list of matches
@@ -63,14 +63,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/MatchSummary'
-    
+
     post:
       tags:
         - Lobby
       summary: Host a new match
       description: Creates a new game in 'waiting' state with the requester as Player 1.
-      parameters:
-        - $ref: '#/components/parameters/PlayerIDHeader'
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Match created successfully
@@ -83,7 +83,7 @@ paths:
                     type: string
                     example: "user-123-vs-waiting"
         '401':
-          description: Missing X-Player-ID header
+          description: Unauthorized
 
   /matches/{id}/join:
     post:
@@ -91,9 +91,10 @@ paths:
         - Lobby
       summary: Join an existing match
       description: Joins the game as Player 2. Transitions game state to 'Setup'.
+      security:
+        - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchIDPath'
-        - $ref: '#/components/parameters/PlayerIDHeader'
       responses:
         '200':
           description: Joined successfully. Returns the initial game view.
@@ -113,9 +114,10 @@ paths:
         - Gameplay
       summary: Get Game State
       description: Returns the current board state. Automatically applies Fog of War.
+      security:
+        - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchIDPath'
-        - $ref: '#/components/parameters/PlayerIDHeader'
       responses:
         '200':
           description: Current game state
@@ -132,9 +134,10 @@ paths:
         - Gameplay
       summary: Place a ship
       description: Places a ship on the board during the Setup phase.
+      security:
+        - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchIDPath'
-        - $ref: '#/components/parameters/PlayerIDHeader'
       requestBody:
         required: true
         content:
@@ -157,9 +160,10 @@ paths:
         - Gameplay
       summary: Fire a shot
       description: Attacks a coordinate on the enemy board during the Playing phase.
+      security:
+        - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchIDPath'
-        - $ref: '#/components/parameters/PlayerIDHeader'
       requestBody:
         required: true
         content:
@@ -195,13 +199,6 @@ components:
       schema:
         type: string
       description: The unique ID of the match
-    PlayerIDHeader:
-      name: X-Player-ID
-      in: header
-      required: true
-      schema:
-        type: string
-      description: The ID returned from the /login endpoint
 
   schemas:
     # Auth DTOs
@@ -214,6 +211,15 @@ components:
         username:
           type: string
           example: "CommanderAlice"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Token
+        user:
+          $ref: '#/components/schemas/User'
 
     # Lobby DTOs
     MatchSummary:
@@ -295,3 +301,9 @@ components:
               type: string
               enum: ["EMPTY", "SHIP", "HIT", "MISS", "SUNK", "FOG"]
               example: "FOG"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

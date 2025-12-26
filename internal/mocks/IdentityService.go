@@ -16,22 +16,22 @@ type IdentityService struct {
 }
 
 // LoginOrRegister provides a mock function with given fields: ctx, username, source, extID
-func (_m *IdentityService) LoginOrRegister(ctx context.Context, username string, source string, extID string) (dto.User, error) {
+func (_m *IdentityService) LoginOrRegister(ctx context.Context, username string, source string, extID string) (dto.AuthResponse, error) {
 	ret := _m.Called(ctx, username, source, extID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LoginOrRegister")
 	}
 
-	var r0 dto.User
+	var r0 dto.AuthResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (dto.User, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (dto.AuthResponse, error)); ok {
 		return rf(ctx, username, source, extID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) dto.User); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) dto.AuthResponse); ok {
 		r0 = rf(ctx, username, source, extID)
 	} else {
-		r0 = ret.Get(0).(dto.User)
+		r0 = ret.Get(0).(dto.AuthResponse)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
@@ -48,7 +48,8 @@ func (_m *IdentityService) LoginOrRegister(ctx context.Context, username string,
 func NewIdentityService(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) *IdentityService {
+},
+) *IdentityService {
 	mock := &IdentityService{}
 	mock.Mock.Test(t)
 

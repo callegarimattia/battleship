@@ -10,6 +10,7 @@ import (
 	"github.com/callegarimattia/battleship/internal/api"
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/service"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/time/rate"
@@ -62,12 +63,24 @@ func (a *Application) Setup() {
 
 	g := a.E.Group("/matches")
 	g.GET("", h.ListMatches)
-	g.POST("", h.HostMatch)
 
-	g.POST("/:id/join", h.JoinMatch)
-	g.GET("/:id", h.GetState)
-	g.POST("/:id/place", h.PlaceShip)
-	g.POST("/:id/attack", h.Attack)
+	// Protected routes
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "secret"
+	}
+
+	protected := g.Group("")
+	protected.Use(echojwt.WithConfig(echojwt.Config{
+		SigningKey: []byte(secret),
+	}))
+	protected.Use(api.RequirePlayerID)
+
+	protected.POST("", h.HostMatch)
+	protected.POST("/:id/join", h.JoinMatch)
+	protected.GET("/:id", h.GetState)
+	protected.POST("/:id/place", h.PlaceShip)
+	protected.POST("/:id/attack", h.Attack)
 }
 
 // Run calls Setup and then starts the server.

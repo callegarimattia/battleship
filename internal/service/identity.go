@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/dto"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -37,25 +40,47 @@ func NewIdentityService() *MemoryIdentityService {
 func (s *MemoryIdentityService) LoginOrRegister(
 	_ context.Context,
 	username, source, extID string,
-) (dto.User, error) {
+) (dto.AuthResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	var user dto.User
 	lookupKey := fmt.Sprintf("%s:%s", source, extID)
 
 	if internalID, exists := s.identities[lookupKey]; exists {
-		return s.users[internalID], nil
+		user = s.users[internalID]
+	} else {
+		newUserID := fmt.Sprintf("user-%s", uuid.NewString())
+		newUser := dto.User{
+			ID:       newUserID,
+			Username: username,
+		}
+
+		s.users[newUserID] = newUser
+		s.identities[lookupKey] = newUserID
+		user = newUser
 	}
 
-	newUserID := fmt.Sprintf("user-%s", uuid.NewString())
-
-	newUser := dto.User{
-		ID:       newUserID,
-		Username: username,
+	// Generate JWT
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "secret"
 	}
 
-	s.users[newUserID] = newUser
-	s.identities[lookupKey] = newUserID
+	claims := jwt.MapClaims{
+		"sub":  user.ID,
+		"name": user.Username,
+		"exp":  time.Now().Add(time.Hour * 24).Unix(),
+	}
 
-	return newUser, nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return dto.AuthResponse{}, err
+	}
+
+	return dto.AuthResponse{
+		Token: signedToken,
+		User:  user,
+	}, nil
 }

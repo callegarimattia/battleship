@@ -12,7 +12,7 @@ type IdentityService interface {
 	// LoginOrRegister finds an existing user or creates a new one.
 	// source: "web", "discord", "cli"
 	// extID: The unique ID from the platform (e.g. Discord User ID, or just the username for Web)
-	LoginOrRegister(ctx context.Context, username, source, extID string) (dto.User, error)
+	LoginOrRegister(ctx context.Context, username, source, extID string) (dto.AuthResponse, error)
 }
 
 // LobbyService handles finding and creating matches.
@@ -58,7 +58,7 @@ func NewAppController(a IdentityService, l LobbyService, g GameService) *AppCont
 func (c *AppController) Login(
 	ctx context.Context,
 	username, source, platformID string,
-) (dto.User, error) {
+) (dto.AuthResponse, error) {
 	return c.auth.LoginOrRegister(ctx, username, source, platformID)
 }
 

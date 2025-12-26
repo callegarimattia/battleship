@@ -48,10 +48,7 @@ func (h *EchoHandler) ListMatches(c echo.Context) error {
 // HostMatch allows a player to host a new match.
 // POST /matches
 func (h *EchoHandler) HostMatch(c echo.Context) error {
-	playerID := c.Request().Header.Get("X-Player-ID")
-	if playerID == "" {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Missing X-Player-ID header")
-	}
+	playerID := c.Get("player_id").(string)
 
 	matchID, err := h.ctrl.HostGameAction(c.Request().Context(), playerID)
 	if err != nil {
@@ -65,7 +62,7 @@ func (h *EchoHandler) HostMatch(c echo.Context) error {
 // POST /matches/:id/join
 func (h *EchoHandler) JoinMatch(c echo.Context) error {
 	matchID := c.Param("id")
-	playerID := c.Request().Header.Get("X-Player-ID")
+	playerID := c.Get("player_id").(string)
 
 	view, err := h.ctrl.JoinGameAction(c.Request().Context(), matchID, playerID)
 	if err != nil {
@@ -79,7 +76,7 @@ func (h *EchoHandler) JoinMatch(c echo.Context) error {
 // GET /matches/:id
 func (h *EchoHandler) GetState(c echo.Context) error {
 	matchID := c.Param("id")
-	playerID := c.Request().Header.Get("X-Player-ID")
+	playerID := c.Get("player_id").(string)
 
 	view, err := h.ctrl.GetGameStateAction(c.Request().Context(), matchID, playerID)
 	if err != nil {
@@ -103,7 +100,7 @@ func (h *EchoHandler) PlaceShip(c echo.Context) error {
 	}
 
 	matchID := c.Param("id")
-	playerID := c.Request().Header.Get("X-Player-ID")
+	playerID := c.Get("player_id").(string)
 
 	view, err := h.ctrl.PlaceShipAction(
 		c.Request().Context(),
@@ -133,7 +130,7 @@ func (h *EchoHandler) Attack(c echo.Context) error {
 	}
 
 	matchID := c.Param("id")
-	playerID := c.Request().Header.Get("X-Player-ID")
+	playerID := c.Get("player_id").(string)
 
 	view, err := h.ctrl.AttackAction(c.Request().Context(), matchID, playerID, req.X, req.Y)
 	if err != nil {

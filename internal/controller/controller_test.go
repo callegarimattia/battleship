@@ -30,7 +30,7 @@ func TestLogin(t *testing.T) {
 		source       string
 		platformID   string
 		mockSetup    func(*mocks.IdentityService)
-		expectedUser dto.User
+		expectedResp dto.AuthResponse
 		expectedErr  error
 	}{
 		{
@@ -40,11 +40,17 @@ func TestLogin(t *testing.T) {
 			platformID: "Alice",
 			mockSetup: func(m *mocks.IdentityService) {
 				m.On("LoginOrRegister", mock.Anything, "Alice", "web", "Alice").
-					Return(dto.User{ID: "u1", Username: "Alice"}, nil).
+					Return(dto.AuthResponse{
+						Token: "token",
+						User:  dto.User{ID: "u1", Username: "Alice"},
+					}, nil).
 					Once()
 			},
-			expectedUser: dto.User{ID: "u1", Username: "Alice"},
-			expectedErr:  nil,
+			expectedResp: dto.AuthResponse{
+				Token: "token",
+				User:  dto.User{ID: "u1", Username: "Alice"},
+			},
+			expectedErr: nil,
 		},
 		{
 			name:       "Service Error",
@@ -53,10 +59,10 @@ func TestLogin(t *testing.T) {
 			platformID: "12345",
 			mockSetup: func(m *mocks.IdentityService) {
 				m.On("LoginOrRegister", mock.Anything, "Bob", "discord", "12345").
-					Return(dto.User{}, errors.New("auth error")).
+					Return(dto.AuthResponse{}, errors.New("auth error")).
 					Once()
 			},
-			expectedUser: dto.User{},
+			expectedResp: dto.AuthResponse{},
 			expectedErr:  errors.New("auth error"),
 		},
 	}
@@ -68,14 +74,14 @@ func TestLogin(t *testing.T) {
 			ctrl, mockAuth, _, _ := setupControllerTest(t)
 			tt.mockSetup(mockAuth)
 
-			user, err := ctrl.Login(context.Background(), tt.username, tt.source, tt.platformID)
+			resp, err := ctrl.Login(context.Background(), tt.username, tt.source, tt.platformID)
 
 			if tt.expectedErr != nil {
 				assert.EqualError(t, err, tt.expectedErr.Error())
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tt.expectedUser, user)
+			assert.Equal(t, tt.expectedResp, resp)
 		})
 	}
 }
