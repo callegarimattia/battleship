@@ -14,9 +14,20 @@ type Config struct {
 	RateLimit int
 	JWTSecret string
 
+	// Client configuration
+	BaseURL string
+
 	// Discord bot configuration
 	DiscordToken string
 	DiscordAppID string
+}
+
+// LoadClientConfig loads configuration required for the client.
+func LoadClientConfig() (*Config, error) {
+	return &Config{
+		BaseURL:   getEnvOrDefault("BASE_URL", "http://localhost:8080"),
+		JWTSecret: getEnvOrDefault("JWT_SECRET", "secret"),
+	}, nil
 }
 
 // LoadServerConfig loads configuration required for the HTTP server.
