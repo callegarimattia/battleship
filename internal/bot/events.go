@@ -5,16 +5,21 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/callegarimattia/battleship/internal/events"
+	"github.com/callegarimattia/battleship/internal/dto"
 )
 
 // subscribeToEvents subscribes the bot to game events.
 func (b *DiscordBot) subscribeToEvents() {
-	b.eventBus.Subscribe("*", b.handleGameEvent)
+	_, ch := b.notifier.Subscribe("*")
+	go func() {
+		for event := range ch {
+			b.handleGameEvent(event)
+		}
+	}()
 }
 
 // handleGameEvent processes game events and sends notifications.
-func (b *DiscordBot) handleGameEvent(event *events.GameEvent) {
+func (b *DiscordBot) handleGameEvent(event *dto.GameEvent) {
 	// Don't notify the player who triggered the event
 	if event.TargetID == event.PlayerID {
 		return
@@ -52,9 +57,9 @@ func (b *DiscordBot) handleGameEvent(event *events.GameEvent) {
 }
 
 // formatEventEmbed creates an embed for the given event.
-func (b *DiscordBot) formatEventEmbed(event *events.GameEvent) *discordgo.MessageEmbed {
+func (b *DiscordBot) formatEventEmbed(event *dto.GameEvent) *discordgo.MessageEmbed {
 	switch event.Type {
-	case events.EventPlayerJoined:
+	case dto.EventPlayerJoined:
 		return &discordgo.MessageEmbed{
 			Title:       "🎮 Player Joined!",
 			Description: "A player has joined your game!",
@@ -64,15 +69,15 @@ func (b *DiscordBot) formatEventEmbed(event *events.GameEvent) *discordgo.Messag
 			},
 		}
 
-	case events.EventShipPlaced:
+	case dto.EventShipPlaced:
 		return &discordgo.MessageEmbed{
 			Title:       "🚢 Ship Placed",
 			Description: "Your opponent placed a ship!",
 			Color:       0x0099ff,
 		}
 
-	case events.EventAttackMade:
-		data, ok := event.Data.(events.AttackEventData)
+	case dto.EventAttackMade:
+		data, ok := event.Data.(dto.AttackEventData)
 		if !ok {
 			return nil
 		}
@@ -87,15 +92,15 @@ func (b *DiscordBot) formatEventEmbed(event *events.GameEvent) *discordgo.Messag
 			Color: 0xff9900,
 		}
 
-	case events.EventGameStarted:
+	case dto.EventGameStarted:
 		return &discordgo.MessageEmbed{
 			Title:       "🎯 Game Started!",
 			Description: "Both players have placed all ships. The battle begins!",
 			Color:       0x00ff00,
 		}
 
-	case events.EventGameOver:
-		data, ok := event.Data.(events.GameOverEventData)
+	case dto.EventGameOver:
+		data, ok := event.Data.(dto.GameOverEventData)
 		if !ok {
 			return nil
 		}

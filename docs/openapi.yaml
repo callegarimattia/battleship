@@ -110,6 +110,31 @@ paths:
   # ---------------------------------------------------------------------------
   # Gameplay Endpoints
   # ---------------------------------------------------------------------------
+  /matches/{id}/ws:
+    get:
+      tags:
+        - Gameplay
+      summary: Stream Game Events (WebSocket)
+      description: |
+        Upgrades the connection to a WebSocket.
+        The server pushes the full `GameView` object immediately upon connection and subsequently whenever a game event occurs.
+        Client does not need to poll.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MatchIDPath'
+      responses:
+        '101':
+          description: Switching Protocols to WebSocket. The stream contains `WSEvent` objects.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WSEvent'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Match not found
+
   /matches/{id}:
     get:
       tags:
@@ -303,6 +328,21 @@ components:
               type: string
               enum: ["EMPTY", "SHIP", "HIT", "MISS", "SUNK", "FOG"]
               example: "FOG"
+
+    WSEvent:
+      type: object
+      required: ["type"]
+      properties:
+        type:
+          type: string
+          description: "Event type: 'game_update' or 'error'"
+          example: "game_update"
+        payload:
+          $ref: '#/components/schemas/GameView'
+        error:
+          type: string
+          description: Error message if type is 'error'
+          example: "Internal Server Error"
 
   securitySchemes:
     BearerAuth:

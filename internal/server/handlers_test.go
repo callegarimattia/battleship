@@ -12,6 +12,7 @@ import (
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/dto"
 	mocks "github.com/callegarimattia/battleship/internal/mocks/controller"
+	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -21,14 +22,15 @@ import (
 
 func setupTest(
 	t *testing.T,
-) (*echo.Echo, *EchoHandler, *mocks.MockIdentityService, *mocks.MockLobbyService, *mocks.MockGameService) {
+) (*echo.Echo, *EchoHandler, *mocks.MockIdentityService, *mocks.MockLobbyService, *mocks.MockGameService, *mocks.MockNotificationService) {
 	e := echo.New()
 	mockAuth := mocks.NewMockIdentityService(t)
 	mockLobby := mocks.NewMockLobbyService(t)
 	mockGame := mocks.NewMockGameService(t)
-	ctrl := controller.NewAppController(mockAuth, mockLobby, mockGame)
+	mockNotifier := mocks.NewMockNotificationService(t)
+	ctrl := controller.NewAppController(mockAuth, mockLobby, mockGame, mockNotifier)
 	h := NewEchoHandler(ctrl)
-	return e, h, mockAuth, mockLobby, mockGame
+	return e, h, mockAuth, mockLobby, mockGame, mockNotifier
 }
 
 func makeRequest(
@@ -105,7 +107,7 @@ func TestLogin(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			e, h, mockAuth, _, _ := setupTest(t)
+			e, h, mockAuth, _, _, _ := setupTest(t)
 			tt.mockSetup(mockAuth)
 
 			req, rec := makeRequest(http.MethodPost, "/login", tt.reqBody, nil)
@@ -163,7 +165,7 @@ func TestListMatches(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			e, h, _, mockLobby, _ := setupTest(t)
+			e, h, _, mockLobby, _, _ := setupTest(t)
 			tt.mockSetup(mockLobby)
 
 			req, rec := makeRequest(http.MethodGet, "/matches", nil, nil)
@@ -221,7 +223,7 @@ func TestHostMatch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			e, h, _, mockLobby, _ := setupTest(t)
+			e, h, _, mockLobby, _, _ := setupTest(t)
 			tt.mockSetup(mockLobby)
 
 			req, rec := makeRequest(http.MethodPost, "/matches", nil, tt.headers)
@@ -285,7 +287,7 @@ func TestJoinMatch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			e, h, _, mockLobby, _ := setupTest(t)
+			e, h, _, mockLobby, _, _ := setupTest(t)
 			tt.mockSetup(mockLobby)
 
 			req, rec := makeRequest(
@@ -356,7 +358,7 @@ func TestGetState(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			e, h, _, _, mockGame := setupTest(t)
+			e, h, _, _, mockGame, _ := setupTest(t)
 			tt.mockSetup(mockGame)
 
 			req, rec := makeRequest(http.MethodGet, "/matches/"+tt.paramID, nil, tt.headers)
@@ -430,7 +432,7 @@ func TestPlaceShip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			e, h, _, _, mockGame := setupTest(t)
+			e, h, _, _, mockGame, _ := setupTest(t)
 			tt.mockSetup(mockGame)
 
 			req, rec := makeRequest(http.MethodPost, "/matches/m1/place", tt.reqBody, tt.headers)
@@ -504,7 +506,7 @@ func TestAttack(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			e, h, _, _, mockGame := setupTest(t)
+			e, h, _, _, mockGame, _ := setupTest(t)
 			tt.mockSetup(mockGame)
 
 			req, rec := makeRequest(http.MethodPost, "/matches/m1/attack", tt.reqBody, tt.headers)
@@ -529,4 +531,63 @@ func TestAttack(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStreamMatchEvents(t *testing.T) { //nolint:paralleltest
+	e, h, _, _, mockGame, mockNotifier := setupTest(t)
+
+	mockSub := mocks.NewMockSubscription(t)
+	mockSub.EXPECT().Unsubscribe().Return().Maybe()
+
+	eventChan := make(chan *dto.GameEvent, 1)
+
+	mockNotifier.EXPECT().Subscribe("m1").
+		Return(mockSub, (<-chan *dto.GameEvent)(eventChan)).
+		Once()
+
+	initialView := dto.GameView{State: "WAITING", Turn: "p1"}
+	mockGame.EXPECT().GetState(mock.Anything, "m1", "p1").
+		Return(initialView, nil).
+		Once()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c := e.NewContext(r, w)
+		c.SetPath("/matches/:id/ws")
+		c.SetParamNames("id")
+		c.SetParamValues("m1")
+		c.Set("player_id", "p1")
+
+		err := h.StreamMatchEvents(c)
+		assert.NoError(t, err)
+	}))
+	defer ts.Close()
+
+	wsURL := "ws" + ts.URL[4:] + "/matches/m1/ws"
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	assert.NoError(t, err)
+	defer ws.Close()
+
+	var evt dto.WSEvent
+	err = ws.ReadJSON(&evt)
+	assert.NoError(t, err)
+	assert.Equal(t, "game_update", evt.Type)
+	assert.NotNil(t, evt.Payload)
+	assert.Equal(t, dto.GameState("WAITING"), evt.Payload.State)
+
+	// Updated view expectations? Maybe redundant if we don't call GetState again
+	// Actually StreamMatchEvents fetches fresh state in the loop.
+
+	updatedView := dto.GameView{State: "PLAYING", Turn: "p2"}
+	mockGame.EXPECT().GetState(mock.Anything, "m1", "p1").
+		Return(updatedView, nil).
+		Maybe()
+
+	eventChan <- &dto.GameEvent{Type: dto.EventGameStarted}
+
+	err = ws.ReadJSON(&evt)
+	assert.NoError(t, err)
+	assert.Equal(t, "game_update", evt.Type)
+	assert.NotNil(t, evt.Payload)
+	assert.Equal(t, dto.GameState("PLAYING"), evt.Payload.State)
 }

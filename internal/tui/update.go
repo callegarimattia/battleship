@@ -1,13 +1,15 @@
 package tui
 
 import (
+	"fmt"
+
 	"github.com/callegarimattia/battleship/internal/client"
 	"github.com/callegarimattia/battleship/internal/dto"
 	"github.com/callegarimattia/battleship/internal/tui/rules"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	// --- Global Keys (Always generic) ---
@@ -36,10 +38,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case error:
 		m.Err = msg
 		return m, nil
-	case TickMsg:
-		if m.State == StateGame {
-			return m, m.handleTick()
-		}
 	}
 
 	switch m.State {
@@ -55,7 +53,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // --- Sub-Update Functions ---
 
-func (m Model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.LoginInput, cmd = m.LoginInput.Update(msg)
 
@@ -77,7 +75,7 @@ func (m Model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) updateLobby(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) updateLobby(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case GotMatchesMsg:
 		m.Matches = msg
@@ -89,7 +87,7 @@ func (m Model) updateLobby(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleLobbyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleLobbyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
 		if m.Cursor > 0 {
@@ -124,7 +122,7 @@ func (m Model) handleLobbyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleMatchJoined(msg MatchJoinedMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleMatchJoined(msg MatchJoinedMsg) (tea.Model, tea.Cmd) {
 	m.GameID = msg.ID
 	m.State = StateGame
 	// Initialize game state params
@@ -132,9 +130,8 @@ func (m Model) handleMatchJoined(msg MatchJoinedMsg) (tea.Model, tea.Cmd) {
 	m.CursorY = 0
 	m.CurrentShipIdx = 0
 	m.SetupPhase = true
-	// Kick off polling
+	// Kick off WS listener and initial fetch
 	return m, tea.Batch(
-		TickCmd(), // Start polling
 		func() tea.Msg { // Initial fetch
 			g, err := m.Client.GetGameState(m.GameID)
 			if err != nil {
@@ -142,10 +139,30 @@ func (m Model) handleMatchJoined(msg MatchJoinedMsg) (tea.Model, tea.Cmd) {
 			}
 			return GotGameMsg(g)
 		},
+		subToWSCmd(m.Client, m.GameID),
 	)
 }
 
-func (m Model) updateGame(msg tea.Msg) (tea.Model, tea.Cmd) {
+func subToWSCmd(c *client.Client, matchID string) tea.Cmd {
+	return func() tea.Msg {
+		ch, err := c.SubscribeToMatch(matchID)
+		if err != nil {
+			return err
+		}
+		return listenForUpdates(ch)
+	}
+}
+
+// listenForUpdates waits for a signal from the WS channel
+func listenForUpdates(ch <-chan *dto.WSEvent) tea.Msg {
+	evt, ok := <-ch
+	if !ok {
+		return nil
+	}
+	return GameUpdateMsg{Event: evt, Channel: ch}
+}
+
+func (m *Model) updateGame(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case GotGameMsg:
 		return m.handleGotGame(msg)
@@ -154,29 +171,44 @@ func (m Model) updateGame(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ShipPlacedMsg:
 		m.CurrentShipIdx++
 		return m.handleGotGame(GotGameMsg(msg.Game))
+	case GameUpdateMsg:
+		// Handle Event
+		var cmd tea.Cmd
+		if msg.Event.Type == "game_update" && msg.Event.Payload != nil {
+			// Update state
+			var newModel tea.Model
+			newModel, cmd = m.handleGotGame(GotGameMsg(msg.Event.Payload))
+			m = newModel.(*Model) // Type assertion due to interface return
+		} else if msg.Event.Type == "error" {
+			m.Err = fmt.Errorf("server error: %s", msg.Event.Error)
+		}
+
+		// Listen for next event
+		return m, tea.Batch(
+			cmd,
+			func() tea.Msg {
+				return listenForUpdates(msg.Channel)
+			},
+		)
 	}
 	return m, nil
 }
 
-func (m Model) handleGotGame(msg GotGameMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleGotGame(msg GotGameMsg) (tea.Model, tea.Cmd) {
 	if msg == nil {
 		return m, nil
 	}
 	m.GameView = msg
-	// Sync local state if needed
-	// Strict mapping to avoid "Tinker Mode" leaking into active gameplay
 	switch m.GameView.State {
 	case dto.StatePlaying, dto.StateFinished:
 		m.SetupPhase = false
 	default:
-		// StateSetup, or any other pre-game state (e.g. Waiting)
-		// We allow tinkering/setup view
 		m.SetupPhase = true
 	}
 	return m, nil
 }
 
-func (m Model) handleGameKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleGameKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
 		if m.CursorY > 0 {
@@ -204,7 +236,7 @@ func (m Model) handleGameKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleAction() (tea.Model, tea.Cmd) {
+func (m *Model) handleAction() (tea.Model, tea.Cmd) {
 	if m.GameView == nil {
 		return m, nil
 	}
@@ -217,7 +249,7 @@ func (m Model) handleAction() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleSetupAction() (tea.Model, tea.Cmd) {
+func (m *Model) handleSetupAction() (tea.Model, tea.Cmd) {
 	if m.CurrentShipIdx >= len(m.ShipsToPlace) {
 		return m, nil
 	}
@@ -227,8 +259,6 @@ func (m Model) handleSetupAction() (tea.Model, tea.Cmd) {
 
 	// Validation: Check Game State
 	if m.GameView.State != dto.StateSetup {
-		// Just ignore the action, or return nil (effectively doing nothing)
-		// We could allow tinkering but not placing.
 		return m, nil
 	}
 
@@ -248,7 +278,7 @@ func (m Model) handleSetupAction() (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m Model) handlePlayAction() (tea.Model, tea.Cmd) {
+func (m *Model) handlePlayAction() (tea.Model, tea.Cmd) {
 	cx, cy := m.CursorX, m.CursorY
 
 	// Validation: Check if cell can be attacked
@@ -265,20 +295,6 @@ func (m Model) handlePlayAction() (tea.Model, tea.Cmd) {
 		}
 		return GotGameMsg(g)
 	}
-}
-
-func (m Model) handleTick() tea.Cmd {
-	return tea.Batch(
-		func() tea.Msg {
-			g, err := m.Client.GetGameState(m.GameID)
-			if err != nil {
-				// Don't error out on poll fail, just ignore or log
-				return nil
-			}
-			return GotGameMsg(g)
-		},
-		TickCmd(),
-	)
 }
 
 func fetchMatchesCmd(c *client.Client) tea.Cmd {

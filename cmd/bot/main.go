@@ -8,7 +8,6 @@ import (
 	"github.com/callegarimattia/battleship/internal/bot"
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/env"
-	"github.com/callegarimattia/battleship/internal/events"
 	"github.com/callegarimattia/battleship/internal/service"
 )
 
@@ -20,15 +19,15 @@ func main() {
 	}
 
 	// Initialize services
-	eventBus := events.NewMemoryEventBus()
+	notifier := service.NewNotificationService()
 	identityService := service.NewIdentityService(cfg.JWTSecret)
-	memoryService := service.NewMemoryService(eventBus)
+	memoryService := service.NewMemoryService(notifier)
 
 	// Create controller
-	ctrl := controller.NewAppController(identityService, memoryService, memoryService)
+	ctrl := controller.NewAppController(identityService, memoryService, memoryService, notifier)
 
 	// Create and start bot
-	discordBot, err := bot.NewDiscordBot(cfg.DiscordToken, cfg.DiscordAppID, ctrl, eventBus)
+	discordBot, err := bot.NewDiscordBot(cfg.DiscordToken, cfg.DiscordAppID, ctrl, notifier)
 	if err != nil {
 		log.Fatalf("Failed to create Discord bot: %v", err)
 	}

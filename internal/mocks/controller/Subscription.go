@@ -2,7 +2,7 @@
 // github.com/vektra/mockery
 // template: testify
 
-package mock_events
+package mock_controller
 
 import (
 	mock "github.com/stretchr/testify/mock"

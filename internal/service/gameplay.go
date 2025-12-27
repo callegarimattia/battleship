@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/callegarimattia/battleship/internal/dto"
-	"github.com/callegarimattia/battleship/internal/events"
 	"github.com/callegarimattia/battleship/internal/model"
 )
 
@@ -45,7 +44,7 @@ func (s *MemoryService) PlaceShip(
 	}
 
 	// Emit event: ship placed
-	if s.eventBus != nil {
+	if s.notifier != nil {
 		// Get opponent ID
 		opponentID := ""
 		if sg.host == playerID {
@@ -55,13 +54,13 @@ func (s *MemoryService) PlaceShip(
 		}
 
 		if opponentID != "" {
-			s.eventBus.Publish(&events.GameEvent{
-				Type:      events.EventShipPlaced,
+			s.notifier.Publish(&dto.GameEvent{
+				Type:      dto.EventShipPlaced,
 				MatchID:   matchID,
 				PlayerID:  playerID,
 				TargetID:  opponentID,
 				Timestamp: time.Now(),
-				Data: events.ShipPlacedEventData{
+				Data: dto.ShipPlacedEventData{
 					Size:     size,
 					X:        x,
 					Y:        y,
@@ -102,7 +101,7 @@ func (s *MemoryService) Attack(
 	}
 
 	// Emit event: attack made
-	if s.eventBus != nil {
+	if s.notifier != nil {
 		// Get opponent ID
 		opponentID := ""
 		if sg.host == playerID {
@@ -120,13 +119,13 @@ func (s *MemoryService) Attack(
 				resultStr = "sunk"
 			}
 
-			s.eventBus.Publish(&events.GameEvent{
-				Type:      events.EventAttackMade,
+			s.notifier.Publish(&dto.GameEvent{
+				Type:      dto.EventAttackMade,
 				MatchID:   matchID,
 				PlayerID:  playerID,
 				TargetID:  opponentID,
 				Timestamp: time.Now(),
-				Data: events.AttackEventData{
+				Data: dto.AttackEventData{
 					X:      x,
 					Y:      y,
 					Result: resultStr,

@@ -8,7 +8,6 @@ import (
 
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/env"
-	"github.com/callegarimattia/battleship/internal/events"
 	"github.com/callegarimattia/battleship/internal/server"
 	"github.com/callegarimattia/battleship/internal/service"
 	echojwt "github.com/labstack/echo-jwt/v4"
@@ -25,29 +24,27 @@ func main() {
 }
 
 type Application struct {
-	E *echo.Echo
+	E      *echo.Echo
+	Config *env.Config
 }
 
 // Setup initializes the Echo instance and routes.
 // It is separate from Run so that tests can initialize without starting the listener.
 func (a *Application) Setup() {
-	cfg, err := env.LoadServerConfig()
+	var err error
+	a.Config, err = env.LoadServerConfig()
 	if err != nil {
 		log.Fatalf("Failed to load server config: %v", err)
 	}
 
-	// Initialize event bus
-	eventBus := events.NewMemoryEventBus()
-	// Note: defer eventBus.Close() is typically used when the bus has resources to clean up
-	// and the function's scope is the lifetime of the bus. For a server, the bus might
-	// need to live for the entire application lifecycle, so deferring here might close it
-	// prematurely if Setup is called and then the server runs.
-	// For now, keeping it as per instruction, but it might need adjustment based on bus implementation.
+	cfg := a.Config
 
-	// Initialize services, passing the event bus
-	memEngine := service.NewMemoryService(eventBus) // Modified to pass eventBus
+	// Initialize event bus
+	// Initialize services
+	notifier := service.NewNotificationService()
+	memEngine := service.NewMemoryService(notifier)
 	authService := service.NewIdentityService(cfg.JWTSecret)
-	appCtrl := controller.NewAppController(authService, memEngine, memEngine)
+	appCtrl := controller.NewAppController(authService, memEngine, memEngine, notifier)
 
 	a.E = echo.New()
 
@@ -85,19 +82,15 @@ func (a *Application) Setup() {
 	protected.GET("/:id", h.GetState)
 	protected.POST("/:id/place", h.PlaceShip)
 	protected.POST("/:id/attack", h.Attack)
+	protected.GET("/:id/ws", h.StreamMatchEvents)
 }
 
 // Run calls Setup and then starts the server.
 func (a *Application) Run() error {
 	a.Setup()
 
-	cfg, err := env.LoadServerConfig()
-	if err != nil {
-		log.Fatalf("Failed to load server config: %v", err)
-	}
-
 	s := &http.Server{
-		Addr:              ":" + cfg.Port,
+		Addr:              ":" + a.Config.Port,
 		Handler:           a.E,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

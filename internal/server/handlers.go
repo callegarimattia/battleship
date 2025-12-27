@@ -1,10 +1,12 @@
-// Package api contains the http handlers
+// Package server contains the http handlers
 package server
 
 import (
 	"net/http"
 
 	"github.com/callegarimattia/battleship/internal/controller"
+	"github.com/callegarimattia/battleship/internal/dto"
+	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
 
@@ -138,4 +140,67 @@ func (h *EchoHandler) Attack(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, view)
+}
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins for dev simplicity
+	},
+}
+
+// StreamMatchEvents upgrades the connection to WebSocket and streams match events.
+// GET /matches/:id/ws
+func (h *EchoHandler) StreamMatchEvents(c echo.Context) error {
+	matchID := c.Param("id")
+	playerID := c.Get("player_id").(string)
+
+	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = ws.Close() }()
+
+	sub, eventChan := h.ctrl.SubscribeToMatch(matchID)
+	defer sub.Unsubscribe()
+
+	// Send initial state
+	initialView, err := h.ctrl.GetGameStateAction(c.Request().Context(), matchID, playerID)
+	if err == nil {
+		if wErr := ws.WriteJSON(dto.WSEvent{
+			Type:    "game_update",
+			Payload: &initialView,
+		}); wErr != nil {
+			return nil
+		}
+	} else {
+		_ = ws.WriteJSON(dto.WSEvent{
+			Type:  "error",
+			Error: err.Error(),
+		})
+	}
+
+	for {
+		select {
+		case <-eventChan:
+			// Fetch fresh state for this player
+			view, err := h.ctrl.GetGameStateAction(c.Request().Context(), matchID, playerID)
+			if err != nil {
+				// Try to send error to client
+				_ = ws.WriteJSON(dto.WSEvent{
+					Type:  "error",
+					Error: "failed to fetch state: " + err.Error(),
+				})
+				continue
+			}
+
+			if wErr := ws.WriteJSON(dto.WSEvent{
+				Type:    "game_update",
+				Payload: &view,
+			}); wErr != nil {
+				return nil
+			}
+		case <-c.Request().Context().Done():
+			return nil
+		}
+	}
 }

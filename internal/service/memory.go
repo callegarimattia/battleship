@@ -9,7 +9,6 @@ import (
 
 	"github.com/callegarimattia/battleship/internal/controller"
 	"github.com/callegarimattia/battleship/internal/dto"
-	"github.com/callegarimattia/battleship/internal/events"
 	"github.com/callegarimattia/battleship/internal/model"
 	"github.com/google/uuid"
 )
@@ -23,7 +22,7 @@ var (
 type MemoryService struct {
 	games    map[string]*safeGame
 	gamesMu  sync.RWMutex
-	eventBus events.EventBus
+	notifier controller.NotificationService
 }
 
 type safeGame struct {
@@ -37,10 +36,10 @@ type safeGame struct {
 }
 
 // NewMemoryService creates a new in-memory lobby and game service.
-func NewMemoryService(eventBus events.EventBus) *MemoryService {
+func NewMemoryService(n controller.NotificationService) *MemoryService {
 	s := &MemoryService{
 		games:    make(map[string]*safeGame),
-		eventBus: eventBus,
+		notifier: n,
 	}
 	go s.cleanupLoop()
 	return s
@@ -185,9 +184,9 @@ func (s *MemoryService) JoinMatch(
 	}
 
 	// Emit event: player joined
-	if s.eventBus != nil {
-		s.eventBus.Publish(&events.GameEvent{
-			Type:      events.EventPlayerJoined,
+	if s.notifier != nil {
+		s.notifier.Publish(&dto.GameEvent{
+			Type:      dto.EventPlayerJoined,
 			MatchID:   matchID,
 			PlayerID:  playerID,
 			TargetID:  game.host, // Notify the host

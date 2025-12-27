@@ -12,7 +12,6 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/callegarimattia/battleship/internal/controller"
-	"github.com/callegarimattia/battleship/internal/events"
 )
 
 // DiscordBot represents the Discord bot instance.
@@ -20,7 +19,7 @@ type DiscordBot struct {
 	session         *discordgo.Session
 	appID           string
 	ctrl            *controller.AppController
-	eventBus        events.EventBus
+	notifier        controller.NotificationService
 	activeMatches   map[string]string // userID -> matchID
 	matchMu         sync.RWMutex
 	playerToDiscord map[string]string // playerID -> discordUserID
@@ -33,7 +32,7 @@ type DiscordBot struct {
 func NewDiscordBot(
 	token, appID string,
 	ctrl *controller.AppController,
-	eventBus events.EventBus,
+	notifier controller.NotificationService,
 ) (*DiscordBot, error) {
 	if appID == "" {
 		return nil, fmt.Errorf("app ID is required")
@@ -48,7 +47,7 @@ func NewDiscordBot(
 		session:         session,
 		appID:           appID,
 		ctrl:            ctrl,
-		eventBus:        eventBus,
+		notifier:        notifier,
 		activeMatches:   make(map[string]string),
 		playerToDiscord: make(map[string]string),
 		matchToChannel:  make(map[string]string),

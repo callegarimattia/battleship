@@ -68,3 +68,53 @@ type MatchSummary struct {
 	PlayerCount int       `json:"player_count"`
 	CreatedAt   time.Time `json:"created_at"`
 }
+
+// WSEvent is a unified container for all WebSocket messages.
+type WSEvent struct {
+	Type    string    `json:"type"`              // e.g., "game_update", "error"
+	Payload *GameView `json:"payload,omitempty"` // The game state
+	Error   string    `json:"error,omitempty"`   // Error message if any
+}
+
+// EventType represents the type of game event.
+type EventType string
+
+// EventType possible values
+const (
+	EventPlayerJoined EventType = "player.joined"
+	EventShipPlaced   EventType = "ship.placed"
+	EventAttackMade   EventType = "attack.made"
+	EventGameStarted  EventType = "game.started"
+	EventGameOver     EventType = "game.over"
+	EventTurnChanged  EventType = "turn.changed"
+)
+
+// GameEvent represents a game event that can be published to subscribers.
+type GameEvent struct {
+	Type      EventType `json:"type"`
+	MatchID   string    `json:"match_id"`
+	PlayerID  string    `json:"player_id,omitempty"` // Player who triggered the event
+	TargetID  string    `json:"target_id,omitempty"` // Player who should be notified
+	Data      any       `json:"data,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// AttackEventData contains data for attack events.
+type AttackEventData struct {
+	X      int    `json:"x"`
+	Y      int    `json:"y"`
+	Result string `json:"result"` // "hit", "miss", "sunk"
+}
+
+// ShipPlacedEventData contains data for ship placement events.
+type ShipPlacedEventData struct {
+	Size     int  `json:"size"`
+	X        int  `json:"x"`
+	Y        int  `json:"y"`
+	Vertical bool `json:"vertical"`
+}
+
+// GameOverEventData contains data for game over events.
+type GameOverEventData struct {
+	Winner string `json:"winner"`
+}

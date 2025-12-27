@@ -1,3 +1,4 @@
+// Package tui implements the TUI for Battleship
 package tui
 
 import (
@@ -10,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// --- App States ---
+// SessionState represents the current state of the application.
 type SessionState int
 
 const (
@@ -21,7 +22,7 @@ const (
 
 const BoardSize = 10
 
-// --- Main Model ---
+// Model is the main TUI model.
 type Model struct {
 	State  SessionState
 	Client *client.Client
@@ -53,7 +54,7 @@ type Model struct {
 	Width, Height int
 }
 
-func New() Model {
+func New() *Model {
 	cfg, err := env.LoadClientConfig()
 	if err != nil {
 		log.Fatalf("Failed to load client config: %v", err)
@@ -65,7 +66,7 @@ func New() Model {
 	ti.CharLimit = 20
 	ti.Width = 30
 
-	return Model{
+	return &Model{
 		State:        StateLogin,
 		Client:       client.New(cfg.BaseURL),
 		LoginInput:   ti,
@@ -73,6 +74,6 @@ func New() Model {
 	}
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return textinput.Blink
 }

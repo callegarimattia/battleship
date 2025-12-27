@@ -7,6 +7,17 @@ import (
 	"github.com/callegarimattia/battleship/internal/dto"
 )
 
+// NotificationService handles event publishing and subscription.
+type NotificationService interface {
+	Subscribe(matchID string) (Subscription, <-chan *dto.GameEvent)
+	Publish(event *dto.GameEvent)
+}
+
+// Subscription represents a subscription to events.
+type Subscription interface {
+	Unsubscribe()
+}
+
 // IdentityService handles user registration and login.
 type IdentityService interface {
 	// LoginOrRegister finds an existing user or creates a new one.
@@ -44,14 +55,21 @@ type GameService interface {
 
 // AppController is the main controller orchestrating the application flow.
 type AppController struct {
-	auth  IdentityService
-	lobby LobbyService
-	game  GameService
+	auth     IdentityService
+	lobby    LobbyService
+	game     GameService
+	notifier NotificationService
 }
 
 // NewAppController wires everything together.
-func NewAppController(a IdentityService, l LobbyService, g GameService) *AppController {
-	return &AppController{auth: a, lobby: l, game: g}
+// NewAppController wires everything together.
+func NewAppController(
+	a IdentityService,
+	l LobbyService,
+	g GameService,
+	n NotificationService,
+) *AppController {
+	return &AppController{auth: a, lobby: l, game: g, notifier: n}
 }
 
 // Login handles user authentication and registration.
@@ -105,4 +123,11 @@ func (c *AppController) GetGameStateAction(
 	matchID, playerID string,
 ) (dto.GameView, error) {
 	return c.game.GetState(ctx, matchID, playerID)
+}
+
+// SubscribeToMatch allows the handler to subscribe to match events.
+func (c *AppController) SubscribeToMatch(
+	matchID string,
+) (sub Subscription, eventChan <-chan *dto.GameEvent) {
+	return c.notifier.Subscribe(matchID)
 }

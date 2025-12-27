@@ -15,9 +15,13 @@ type (
 	GotGameMsg      *dto.GameView
 	ShipPlacedMsg   struct{ Game *dto.GameView }
 	TickMsg         time.Time
+	GameUpdateMsg   struct {
+		Event   *dto.WSEvent
+		Channel <-chan *dto.WSEvent
+	}
 )
 
-// Helper to generate tick command
+// TickCmd returns a command that triggers a tick.
 func TickCmd() tea.Cmd {
 	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
 		return TickMsg(t)

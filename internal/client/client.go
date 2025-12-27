@@ -1,3 +1,4 @@
+// Package client provides an HTTP and WebSocket client for the Battleship game.
 package client
 
 import (
@@ -5,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/callegarimattia/battleship/internal/dto"
+	"github.com/gorilla/websocket"
 )
 
 type Client struct {
@@ -121,4 +125,52 @@ func (c *Client) Attack(matchID string, x, y int) (*dto.GameView, error) {
 	}
 	err := c.do("POST", fmt.Sprintf("/matches/%s/attack", matchID), req, &game)
 	return &game, err
+}
+
+// SubscribeToMatch connects to the WebSocket endpoint and returns a channel that signals updates.
+// SubscribeToMatch connects to the WebSocket endpoint and returns a channel that receives game state updates.
+func (c *Client) SubscribeToMatch(matchID string) (<-chan *dto.WSEvent, error) {
+	// Determine WS scheme
+	scheme := "ws"
+	if strings.HasPrefix(c.BaseURL, "https") {
+		scheme = "wss"
+	}
+
+	u, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base URL: %w", err)
+	}
+	u.Scheme = scheme
+	u.Path = fmt.Sprintf("/matches/%s/ws", matchID)
+
+	header := http.Header{}
+	if c.Token != "" {
+		header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	conn, _, err := websocket.DefaultDialer.Dial(u.String(), header)
+	if err != nil {
+		return nil, err
+	}
+
+	updateChan := make(chan *dto.WSEvent, 1)
+
+	// Pump
+	go func() {
+		defer func() { _ = conn.Close() }()
+		defer close(updateChan)
+		for {
+			var evt dto.WSEvent
+			if err := conn.ReadJSON(&evt); err != nil {
+				return
+			}
+			// Signal update
+			select {
+			case updateChan <- &evt:
+			default:
+			}
+		}
+	}()
+
+	return updateChan, nil
 }

@@ -3,6 +3,14 @@ package tui
 import "github.com/charmbracelet/lipgloss"
 
 var (
+	// Colors
+	ColorWin    = lipgloss.Color("#FFD700") // Gold
+	ColorLose   = lipgloss.Color("#DC143C") // Crimson
+	ColorSetup  = lipgloss.Color("#00BFFF") // Deep Sky Blue
+	ColorMyTurn = lipgloss.Color("#00FA9A") // Medium Spring Green
+	ColorOpTurn = lipgloss.Color("#FF4500") // Orange Red
+
+	// General Styles
 	StyleTitle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#FAFAFA")).
